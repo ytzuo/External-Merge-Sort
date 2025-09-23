@@ -1,6 +1,5 @@
 // FileHelper.h
-#ifndef FILEHELPER_H
-#define FILEHELPER_H
+#pragma once
 
 #include <string>
 #include <fstream>
@@ -54,6 +53,7 @@ public:
         return ~crc;
     }
     
+    //如果输入是 0x1234567890ABCDEF，输出将是 0xEFCDAB9078563412。
     inline uint64_t byteswap64(uint64_t x) {
         return  ((x & 0xFF00000000000000ull) >> 56) |
             ((x & 0x00FF000000000000ull) >> 40) |
@@ -112,7 +112,7 @@ public:
     }
     // 模板函数必须在头文件中实现
     template<typename T>
-    void genFile(std::string file_name, int len, uint64_t num, T type) {
+    void genRawFile(std::string file_name, int len, uint64_t num, T type) {
         //using data_type = T;
         std::string filePath = "./files/" + file_name;
         std::ofstream fs(filePath);
@@ -123,9 +123,7 @@ public:
         h.type = TypeMap<T>::id;
         std::cout<<"type: "<<h.type<<std::endl;
         h.user_size = h.type == 0x20 ? (sizeof(T)) : 0;
-
         h.run_count = byteswap64(num);          // 主机 → 小端
-
         h.magic = byteswap32(h.magic);
         fs.write(reinterpret_cast<const char*>(&h), sizeof(h));
 
@@ -152,7 +150,7 @@ public:
             //auto aligned = (end + 4095) & ~4095;
             // 改成
             std::streamoff endOff = static_cast<std::streamoff>(end);          // 1. 先转整数
-            std::streamoff alignedOff = (endOff + 4095) & ~4095;              // 2. 做对齐
+            std::streamoff alignedOff = (endOff + 4095) & ~4095;               // 2. 做对齐
             fs.seekp(alignedOff);                                              // 3. 再定位
             //fs.seekp(aligned);
 
@@ -170,7 +168,7 @@ public:
         fs.close();
     }
 
-    // 第一个scan函数模板实现
+    // 第一个scan函数模板实现, 用于首次读取文件中的一条run, 返回读取完成时的文件指针和本条run末尾的指针
     template<typename T>
     std::pair<std::streampos, std::streampos> scan(
         std::string filename,
@@ -185,7 +183,6 @@ public:
 
         Header header;
         readHeader(filename,&header);
-        //std::cout<<"pos: "<<pos<<" run_count: "<<header.run_count<<std::endl;
         uint8_t type = header.type;
         std::cout<<"type: "<<type<<std::endl;
 
@@ -207,20 +204,19 @@ public:
 
         // 检查pos是否有效, 超过run的最大数量则报错
         if (pos < 1 || pos > static_cast<int>(header.run_count)) {
-            //std::cout<<"pos: "<<pos<<" run_count: "<<header.run_count<<std::endl;
             fs.close();
             throw std::runtime_error("Invalid position");
         }
 
         Meta meta;
+        // 计算Meta的开始位置
         std::streampos meta_start = sizeof(Header) + static_cast<std::streamoff>(pos - 1) * sizeof(Meta);
         fs.seekg(meta_start, std::ios::beg);
         fs.read(reinterpret_cast<char*>(&meta), sizeof(Meta));
         meta.run_len = byteswap64(meta.run_len);
         meta.run_offset = byteswap64(meta.run_offset);
 
-        // 计算run起始位置
-        // 每个run包含run_length个元素
+        // 找到run起始位置
         std::streampos run_start = meta.run_offset;
         fs.seekg(run_start);
 
@@ -244,7 +240,7 @@ public:
         return std::make_pair(read_end, run_end);
     }
 
-    // 第二个scan函数模板实现
+    // 第二个scan函数模板实现, 从上次读取到的位置继续向下读取
     template<typename T>
     std::streampos scan(
         std::string filename,
@@ -283,6 +279,86 @@ public:
         // 返回读取结束位置
         return current_pos;
     }
-};
 
-#endif // FILEHELPER_H
+    template<typename T>
+    std::streampos genEmptyFile(
+        std::string file_name, 
+        int run_count,          // 文件中将插入的run的个数
+        T type) {
+
+        // 创建空文件
+        std::string filePath = "./files/" + file_name;
+        std::ofstream fs(filePath);
+        if (!fs) throw std::runtime_error("open file failed");
+
+        // 写入文件头
+        Header h;
+        h.type = TypeMap<T>::id;
+        std::cout<<"type: "<<h.type<<std::endl;
+        h.user_size = h.type == 0x20 ? (sizeof(T)) : 0;
+        h.run_count = byteswap64(run_count);          // 主机 → 小端
+        h.magic = byteswap32(h.magic);
+        fs.write(reinterpret_cast<const char*>(&h), sizeof(h));
+
+        // 预留run_count个Meta, 同时找出第一个run的开头位置
+        //Meta meta;
+        fs.seekp(run_count*sizeof(Meta), std::ios::cur);
+        
+        std::streampos run_start = fs.tellp();
+        fs.close();
+
+        return run_start;
+    }
+
+    // 向文件中写入排序后的run
+    template<typename T>
+	std::streampos put(std::string file_name, 
+        std::streampos put_pos,
+        int run_len, 
+        int index, 
+        T* first, 
+        T* last) {
+
+        std::string filePath = "./files/" + file_name;
+        std::ofstream fs(filePath, std::ios::in | std::ios::out | std::ios::binary);
+        if (!fs) throw std::runtime_error("open file failed");
+
+        // 写入first到last之间的数据
+        fs.seekp(put_pos, std::ios::beg);
+        size_t put_size = std::distance(first, last);
+        fs.write(reinterpret_cast<const char*>(first), put_size);
+        std::streampos new_put_pos = fs.tellp();
+        
+        // 找到对应的Meta的位置
+        std::streampos meta_pos = sizeof(Header) + (index - 1) * sizeof(Meta);
+        fs.seekp(meta_pos, std::ios::beg);
+
+        // 创建元数据
+        Meta meta;
+        meta.run_len = std::distance(first, last);
+        std::cout<<"distance: "<<meta.run_len<<std::endl;
+        meta.crc32 = crc32(first, put_size);
+        meta.run_offset = put_pos;
+        
+        // 写回新的Meta
+        fs.seekp(meta_pos, std::ios::beg);
+        // 字节序转换
+        meta.run_len = byteswap64(meta.run_len);
+        meta.run_offset = byteswap64(meta.run_offset);
+        meta.crc32 = byteswap32(meta.crc32);
+        fs.write(reinterpret_cast<const char*>(&meta), sizeof(Meta));
+
+        return new_put_pos;
+	}
+
+    // 从文件中查找run
+	template<typename T>
+	void search(std::string file_name, 
+        int size, 
+        int pos, 
+        T*& begin_, 
+        T*& end_) {
+
+
+	}
+};

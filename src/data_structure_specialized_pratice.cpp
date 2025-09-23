@@ -2,23 +2,25 @@
 //
 
 #include "../include/data_structure_specialized_pratice.h"
-
 #include "../include/FileHelper.h"
 #include <iostream>
 #include <vector>
 #include <cassert>
 
 using namespace std;
-void testFileHelper();
+void test1();
+void test2();
 int main()
 {
 	cout << "Hello CMake." << endl;
-	testFileHelper();
+	test1();
+    std::cout<<"__________________________________________________________"<<std::endl;
+    test2();
 	return 0;
 }
 
 
-void testFileHelper() {
+void test1() {
     try {
         // 确保files目录存在
         //std::filesystem::create_directories("./files");
@@ -26,7 +28,7 @@ void testFileHelper() {
         // 测试1: 生成测试文件
         std::cout << "Generating test file..." << std::endl;
         FileHelper helper;
-        helper.genFile("test.dat", 100, (uint64_t)5, double(0)); // 生成5个run，每个包含100个int
+        helper.genRawFile("test.dat", 100, (uint64_t)5, double(0)); // 生成5个run，每个包含100个int
         
         // 测试2: 读取头部信息
         std::cout << "Reading header..." << std::endl;
@@ -84,6 +86,56 @@ void testFileHelper() {
         
         std::cout << "All tests passed!" << std::endl;
         
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+}
+
+void test2() {
+    try {
+        std::string file_name = "test2.dat";
+        int run_count = 10;
+        int run_length = 100;
+        FileHelper helper;
+        std::streampos put_pos = helper.genEmptyFile(file_name, run_count, int(0));
+        std::cout<<"空文件创建完成!"<<std::endl;
+
+        std::vector<std::vector<int>> new_data;
+        for(int i = 1; i <= run_count; i++) {
+            std::vector<int> temp;
+            for(int j = 1; j <= run_length; j++) {
+               temp.push_back(i+j);
+            }
+            new_data.push_back(temp);
+        }
+        std::cout<<"待插入数据创建完成!"<<std::endl;
+        for(int i = 1; i <= run_count; i++) {
+            int* data = new_data[i-1].data();
+            put_pos = helper.put(file_name, put_pos, run_length, i, data, data+run_length);
+        }
+        std::cout<<"数据已插入文件!"<<std::endl;
+
+        std::vector<int> data1(10);
+        int* begin = data1.data();
+        int* end = data1.data();
+        auto position = helper.scan(file_name, 10, 1, begin, end);
+        cout<<"First 10 elements: ";
+        //std::cout<<static_cast<int>(end-begin)<<std::endl;
+        for(int i = 0; i < static_cast<int>(end-begin); i++) {
+            cout<<data1[i]<<" ";
+            //begin++;
+        } cout<<std::endl;
+
+        std::vector<int> data2(10);
+        begin = data2.data();
+        end = data2.data();
+        auto current = helper.scan(file_name, position.first, position.second, 10, begin, end);
+        cout<<"Then 10 elements: ";
+        for(int i = 0; i < static_cast<int>(end-begin); i++) {
+            cout<<data2[i]<<" ";
+            //begin++;
+        } cout<<std::endl;
+
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

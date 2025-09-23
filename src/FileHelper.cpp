@@ -1,10 +1,10 @@
 #include "../include/FileHelper.h"
-#include <fstream>
+//#include <fstream>
 #include <vector>
 #include <random>
 #include <algorithm>
 #include <cstring>
-#include <stdexcept>
+//#include <stdexcept>
 #include <cstdint>
 
 //#include <arpa/inet.h>  // Linux/Unix 系统
@@ -119,6 +119,7 @@
 	}
 	*/
 
+	/*
 	template<typename T>
 	void put(std::string file_name, int size, int pos, T* first, T* last) {
 
@@ -128,6 +129,7 @@
 	void search(std::string file_name, int size, int pos, T*& begin_, T*& end_) {
 
 	}
+	*/
 
 	template<typename T>
 	static std::vector<T> makeSortedRun(int len) {
