@@ -92,9 +92,10 @@ public:
     }
 
     // 普通成员函数声明和实现
-    bool readHeader(const std::string& filename, Header* header) {
-        std::string full_path = "./files/" + filename;
-        std::ifstream file(full_path, std::ios::binary);
+    bool readHeader(std::fstream& file, Header* header) {
+        //std::string full_path = "./files/" + filename;
+        //std::ifstream file(full_path, std::ios::binary);
+        file.seekg(0, std::ios::beg);
         if (!file) {
             return false;
         }
@@ -121,7 +122,7 @@ public:
         /* 1. 写头部（先留位） */
         Header h{};
         h.type = TypeMap<T>::id;
-        std::cout<<"type: "<<h.type<<std::endl;
+        //std::cout<<"type: "<<h.type<<std::endl;
         h.user_size = h.type == 0x20 ? (sizeof(T)) : 0;
         h.run_count = byteswap64(num);          // 主机 → 小端
         h.magic = byteswap32(h.magic);
@@ -165,26 +166,26 @@ public:
             m.crc32 = byteswap32(m.crc32);
             fs.write(reinterpret_cast<const char*>(&m), sizeof(m));
         }
-        fs.close();
+        //fs.close();
     }
 
     // 第一个scan函数模板实现, 用于首次读取文件中的一条run, 返回读取完成时的文件指针和本条run末尾的指针
     template<typename T>
     std::pair<std::streampos, std::streampos> scan(
-        std::string filename,
+        std::fstream& fs,
         int size,
         int pos,
         T*& begin,
         T*& end) {
 
-        std::string filePath = "./files/" + filename;
-        std::ifstream fs(filePath, std::ios::binary);
-        if (!fs) throw std::runtime_error("Cannot open file: " + filePath);
+        //std::string filePath = "./files/" + filename;
+        //std::ifstream fs(filePath, std::ios::binary);
+        if (!fs) throw std::runtime_error("Cannot open file: ");
 
         Header header;
-        readHeader(filename,&header);
+        readHeader(fs,&header);
         uint8_t type = header.type;
-        std::cout<<"type: "<<type<<std::endl;
+        std::cout<<"type: "<<std::to_string(type)<<std::endl;
 
         // 验证type与模板参数T是否匹配
         uint8_t expected_type = 0xFF; // 默认无效值
@@ -197,14 +198,14 @@ public:
         }
 
         if (type != expected_type) {
-            fs.close();
+            //fs.close();
             throw std::runtime_error("Type mismatch: expected type " + std::to_string(expected_type) + 
                                    ", but got type " + std::to_string(header.type));
         }
 
         // 检查pos是否有效, 超过run的最大数量则报错
         if (pos < 1 || pos > static_cast<int>(header.run_count)) {
-            fs.close();
+            //fs.close();
             throw std::runtime_error("Invalid position");
         }
 
@@ -234,7 +235,7 @@ public:
         end = current;
         std::streampos read_end = fs.tellg();
 
-        fs.close();
+        //fs.close();
 
         // 返回pair：第一个元素是读取结束位置，第二个元素是run的末尾位置
         return std::make_pair(read_end, run_end);
@@ -243,16 +244,16 @@ public:
     // 第二个scan函数模板实现, 从上次读取到的位置继续向下读取
     template<typename T>
     std::streampos scan(
-        std::string filename,
+        std::fstream& fs,
         std::streampos streampos,
         std::streampos endpos,
         int size,
         T*& begin,
         T*& end) {
 
-        std::string filePath = "./files/" + filename;
-        std::ifstream fs(filePath, std::ios::binary);
-        if (!fs) throw std::runtime_error("Cannot open file: " + filePath);
+        //std::string filePath = "./files/" + filename;
+        //std::ifstream fs(filePath, std::ios::binary);
+        if (!fs) throw std::runtime_error("Cannot open file: ");
         
         // 计算可读取的最大字节数
         std::streampos max_bytes = endpos - streampos;
@@ -274,7 +275,7 @@ public:
         // 获取读取结束位置
         std::streampos current_pos = fs.tellg();
 
-        fs.close();
+        //fs.close();
 
         // 返回读取结束位置
         return current_pos;
@@ -294,7 +295,7 @@ public:
         // 写入文件头
         Header h;
         h.type = TypeMap<T>::id;
-        std::cout<<"type: "<<h.type<<std::endl;
+        std::cout<<"type: "<<std::to_string(type)<<std::endl;
         h.user_size = h.type == 0x20 ? (sizeof(T)) : 0;
         h.run_count = byteswap64(run_count);          // 主机 → 小端
         h.magic = byteswap32(h.magic);
@@ -305,22 +306,23 @@ public:
         fs.seekp(run_count*sizeof(Meta), std::ios::cur);
         
         std::streampos run_start = fs.tellp();
-        fs.close();
+        //fs.close();
 
         return run_start;
     }
 
     // 向文件中写入排序后的run
     template<typename T>
-	std::streampos put(std::string file_name, 
+	std::streampos put(
+        std::fstream& fs, 
         std::streampos put_pos,
         int run_len, 
         int index, 
         T* first, 
         T* last) {
 
-        std::string filePath = "./files/" + file_name;
-        std::ofstream fs(filePath, std::ios::in | std::ios::out | std::ios::binary);
+        //std::string filePath = "./files/" + file_name;
+        //std::ofstream fs(filePath, std::ios::in | std::ios::out | std::ios::binary);
         if (!fs) throw std::runtime_error("open file failed");
 
         // 写入first到last之间的数据
