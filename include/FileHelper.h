@@ -400,14 +400,68 @@ public:
         return new_put_pos;
 	}
 
+// ... existing code ...
     // 从文件中查找run
 	template<typename T>
-	void search(std::string file_name, 
-        int size, 
-        int pos, 
-        T*& begin_, 
-        T*& end_) {
+	bool search(std::fstream& fs, 
+        int run_index, 
+        std::vector<T>& data) {
+        
+        //std::string filePath = "./files/" + file_name;
+        //std::fstream fs(filePath, std::ios::in | std::ios::binary);
+        if (!fs) {
+            throw std::runtime_error("Cannot open file: ");
+        }
 
+        // 读取文件头
+        Header header;
+        if (!readHeader(fs, &header)) {
+            fs.close();
+            throw std::runtime_error("Failed to read file header");
+        }
 
+        // 验证类型匹配
+        uint8_t expected_type = TypeMap<T>::id;
+        if (header.type != expected_type) {
+            fs.close();
+            throw std::runtime_error("Type mismatch: expected type " + 
+                                   std::to_string(expected_type) + 
+                                   ", but got type " + 
+                                   std::to_string(header.type));
+        }
+
+        // 检查run_index是否有效
+        if (run_index < 1 || run_index > static_cast<int>(header.run_count)) {
+            fs.close();
+            throw std::runtime_error("Invalid run index: " + std::to_string(run_index));
+        }
+
+        // 定位到元数据
+        std::streampos meta_start = sizeof(Header) + static_cast<std::streamoff>(run_index - 1) * sizeof(Meta);
+        fs.seekg(meta_start, std::ios::beg);
+        
+        Meta meta;
+        fs.read(reinterpret_cast<char*>(&meta), sizeof(Meta));
+        
+        // 字节序转换
+        meta.run_len = byteswap64(meta.run_len);
+        meta.run_offset = byteswap64(meta.run_offset);
+        meta.crc32 = byteswap32(meta.crc32);
+
+        // 定位到数据位置并读取
+        fs.seekg(meta.run_offset, std::ios::beg);
+        data.resize(meta.run_len);
+        fs.read(reinterpret_cast<char*>(data.data()), meta.run_len * sizeof(T));
+        
+        // 验证CRC
+        uint32_t calculated_crc = crc32(data.data(), meta.run_len * sizeof(T));
+        if (calculated_crc != meta.crc32) {
+            fs.close();
+            throw std::runtime_error("Data integrity check failed for run " + std::to_string(run_index));
+        }
+
+        fs.close();
+        return true;
 	}
+// ... existing code ...
 };
