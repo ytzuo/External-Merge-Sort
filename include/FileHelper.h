@@ -112,6 +112,7 @@ public:
         return true;
     }
     // 模板函数必须在头文件中实现
+
     template<typename T>
     void genRawFile(std::string file_name, int len, uint64_t num, T type) {
         //using data_type = T;
@@ -140,7 +141,7 @@ public:
         for (uint64_t i = 0; i < num; i++) {
             auto run = makeSortedRun<T>(len);
             Meta m;
-            m.run_len = len;
+            m.run_len = len * sizeof(T);
             m.run_offset = static_cast<uint64_t>(fs.tellp());
 
             fs.write(reinterpret_cast<const char*>(run.data()),
@@ -169,77 +170,123 @@ public:
         //fs.close();
     }
 
-    // 第一个scan函数模板实现, 用于首次读取文件中的一条run, 返回读取完成时的文件指针和本条run末尾的指针
+    // // 第一个scan函数模板实现, 用于首次读取文件中的一条run, 返回读取完成时的文件指针和本条run末尾的指针
+    // template<typename T>
+    // std::pair<std::streampos, std::streampos> scan(
+    //     std::fstream& fs,
+    //     int size,
+    //     int pos,
+    //     T*& begin,
+    //     T*& end) {
+
+    //     //std::string filePath = "./files/" + filename;
+    //     //std::ifstream fs(filePath, std::ios::binary);
+    //     if (!fs) throw std::runtime_error("Cannot open file: ");
+
+    //     Header header;
+    //     readHeader(fs,&header);
+    //     uint8_t type = header.type;
+    //     std::cout<<"type: "<<std::to_string(type)<<std::endl;
+
+    //     // 验证type与模板参数T是否匹配
+    //     uint8_t expected_type = 0xFF; // 默认无效值
+    //     if (std::is_same_v<T, int>) {
+    //         expected_type = 0x01;
+    //     } else if (std::is_same_v<T, float>) {
+    //         expected_type = 0x10;
+    //     } else if (std::is_same_v<T, double>) {
+    //         expected_type = 0x11;
+    //     }
+
+    //     if (type != expected_type) {
+    //         //fs.close();
+    //         throw std::runtime_error("Type mismatch: expected type " + std::to_string(expected_type) + 
+    //                                ", but got type " + std::to_string(header.type));
+    //     }
+
+    //     // 检查pos是否有效, 超过run的最大数量则报错
+    //     if (pos < 1 || pos > static_cast<int>(header.run_count)) {
+    //         //fs.close();
+    //         throw std::runtime_error("Invalid position");
+    //     }
+
+    //     Meta meta;
+    //     // 计算Meta的开始位置
+    //     std::streampos meta_start = sizeof(Header) + static_cast<std::streamoff>(pos - 1) * sizeof(Meta);
+    //     fs.seekg(meta_start, std::ios::beg);
+    //     fs.read(reinterpret_cast<char*>(&meta), sizeof(Meta));
+    //     meta.run_len = byteswap64(meta.run_len);
+    //     meta.run_offset = byteswap64(meta.run_offset);
+
+    //     // 找到run起始位置
+    //     std::streampos run_start = meta.run_offset;
+    //     fs.seekg(run_start);
+
+    //     // 计算run结束位置
+    //     std::streampos run_end = run_start + static_cast<std::streamoff>(meta.run_len * sizeof(T));
+
+    //     // 读取数据
+    //     int count = 0;
+    //     T* current = begin;
+    //     while (count < size && fs.read(reinterpret_cast<char*>(current), sizeof(T))) {
+    //         current++;
+    //         count++;
+    //     }
+
+    //     end = current;
+    //     std::streampos read_end = fs.tellg();
+
+    //     //fs.close();
+
+    //     // 返回pair：第一个元素是读取结束位置，第二个元素是run的末尾位置
+    //     return std::make_pair(read_end, run_end);
+    // }
+
     template<typename T>
-    std::pair<std::streampos, std::streampos> scan(
+    std::pair<std::streampos, std::streampos> getRunInfo(
         std::fstream& fs,
-        int size,
-        int pos,
-        T*& begin,
-        T*& end) {
+        int run_index) {
+        
+        if (!fs) throw std::runtime_error("Invalid file stream");
 
-        //std::string filePath = "./files/" + filename;
-        //std::ifstream fs(filePath, std::ios::binary);
-        if (!fs) throw std::runtime_error("Cannot open file: ");
-
+        // 读取文件头
         Header header;
-        readHeader(fs,&header);
-        uint8_t type = header.type;
-        std::cout<<"type: "<<std::to_string(type)<<std::endl;
-
-        // 验证type与模板参数T是否匹配
-        uint8_t expected_type = 0xFF; // 默认无效值
-        if (std::is_same_v<T, int>) {
-            expected_type = 0x01;
-        } else if (std::is_same_v<T, float>) {
-            expected_type = 0x10;
-        } else if (std::is_same_v<T, double>) {
-            expected_type = 0x11;
+        if (!readHeader(fs, &header)) {
+            throw std::runtime_error("Failed to read file header");
         }
 
-        if (type != expected_type) {
-            //fs.close();
-            throw std::runtime_error("Type mismatch: expected type " + std::to_string(expected_type) + 
-                                   ", but got type " + std::to_string(header.type));
+        // 验证类型匹配
+        uint8_t expected_type = TypeMap<T>::id;
+        if (header.type != expected_type) {
+            throw std::runtime_error("Type mismatch: expected type " + 
+                                   std::to_string(expected_type) + 
+                                   ", but got type " + 
+                                   std::to_string(header.type));
         }
 
-        // 检查pos是否有效, 超过run的最大数量则报错
-        if (pos < 1 || pos > static_cast<int>(header.run_count)) {
-            //fs.close();
-            throw std::runtime_error("Invalid position");
+        // 检查run_index是否有效
+        if (run_index < 1 || run_index > static_cast<int>(header.run_count)) {
+            throw std::runtime_error("Invalid run index: " + std::to_string(run_index));
         }
 
-        Meta meta;
-        // 计算Meta的开始位置
-        std::streampos meta_start = sizeof(Header) + static_cast<std::streamoff>(pos - 1) * sizeof(Meta);
+        // 定位到元数据
+        std::streampos meta_start = sizeof(Header) + static_cast<std::streamoff>(run_index - 1) * sizeof(Meta);
         fs.seekg(meta_start, std::ios::beg);
+        
+        Meta meta;
         fs.read(reinterpret_cast<char*>(&meta), sizeof(Meta));
+        
+        // 字节序转换
         meta.run_len = byteswap64(meta.run_len);
         meta.run_offset = byteswap64(meta.run_offset);
+        fs.seekp(meta.run_offset, std::ios::beg);
+        std::streampos run_start = fs.tellp();
+        fs.seekp(meta.run_offset+meta.run_len, std::ios::beg);
+        std::streampos run_end   = fs.tellp();
 
-        // 找到run起始位置
-        std::streampos run_start = meta.run_offset;
-        fs.seekg(run_start);
-
-        // 计算run结束位置
-        std::streampos run_end = run_start + static_cast<std::streamoff>(meta.run_len * sizeof(T));
-
-        // 读取数据
-        int count = 0;
-        T* current = begin;
-        while (count < size && fs.read(reinterpret_cast<char*>(current), sizeof(T))) {
-            current++;
-            count++;
-        }
-
-        end = current;
-        std::streampos read_end = fs.tellg();
-
-        //fs.close();
-
-        // 返回pair：第一个元素是读取结束位置，第二个元素是run的末尾位置
-        return std::make_pair(read_end, run_end);
+        return std::make_pair(run_start, run_end);
     }
+
 
     // 第二个scan函数模板实现, 从上次读取到的位置继续向下读取
     template<typename T>
