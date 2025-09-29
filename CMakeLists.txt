@@ -14,13 +14,13 @@ project ("data_structure_specialized_pratice")
 
 # 包含头文件目录
 include_directories(include)
-
 # 添加所有源文件
 add_executable(data_structure_specialized_pratice
     src/data_structure_specialized_pratice.cpp
     src/FileHelper.cpp
     src/InputBuffer.cpp
     src/OutputBuffer.cpp
+    src/MergeSortFile.cpp
 )
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET data_structure_specialized_pratice PROPERTY CXX_STANDARD 20)

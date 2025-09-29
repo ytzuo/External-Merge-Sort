@@ -178,9 +178,9 @@
 	// }
 
 // 显式实例化scan模板函数，以便链接器能找到它们
-template std::pair<std::streampos, std::streampos> FileHelper::scan<int>(
-    std::fstream file, int size, int pos, int*& begin, int*& end);
+// template std::pair<std::streampos, std::streampos> FileHelper::scan<int>(
+//     std::fstream file, int size, int pos, int*& begin, int*& end);
 
-template std::streampos FileHelper::scan<int>(
-    std::fstream file, std::streampos streampos, std::streampos endpos, 
-    int size, int*& begin, int*& end);
+// template std::streampos FileHelper::scan<int>(
+//     std::fstream file, std::streampos streampos, std::streampos endpos, 
+//     int size, int*& begin, int*& end);
