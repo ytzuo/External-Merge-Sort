@@ -31,7 +31,9 @@ static void readPOD(std::fstream& fs, void* pod, size_t sz) {
 
 class MergeSortFile {
 public:
-    explicit MergeSortFile(const std::string& fname) : filename(fname) {}
+    explicit MergeSortFile(const std::string& fname) : filename(fname) {
+        this->file.open(filename);
+    }
 
     /* 创建空文件，只写头 */
     bool create(const std::string& fname, int blkSize);
@@ -42,13 +44,16 @@ public:
     /* 关闭正在读取的文件 */
     void close();
 
+    /* 判断是否已打开文件 */
+    bool is_open();
+
     /* 仅用于首次生成乱序数据：当作 segment-0 追加 */
     bool genRawData(const std::string& fname, int segment_len);
 
     /* 通用追加：把 sortedData 作为新 run 写到 EOF，再追加 meta */
     bool appendSegment(const std::vector<int>& sortedRun);
 
-    /*  */
+    /* 仅用于文件中只有一个 run 时, 向尾部附加数据 */
     bool append(const std::vector<int>& sortedData);
 
     /* 读取指定 run 到 buffer */
@@ -56,6 +61,9 @@ public:
 
     /* 获取指定 run 的Meta */
     SegmentMetadata getSegmentInfo(int segId) const ;
+
+    /* 流式读取指定run的一部分数据 */
+    bool readSegmentChunk(int segId, size_t startOffset, size_t count, std::vector<int>& buffer);
     
     /* 获取所有 run 的Meta */
     std::vector<SegmentMetadata> getAllSegmentInfo() const;

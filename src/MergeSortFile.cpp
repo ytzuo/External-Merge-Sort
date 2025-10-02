@@ -24,10 +24,13 @@ genRawData(const std::string& fname, int segment_len) {
 bool MergeSortFile::
 create(const std::string& fname, int blkSize) {
     filename = fname;
-    file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
+    if(!file.is_open())
+        file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!file) return false;
 
     header = FileHeader{};
+    header.magic[0] = 'M'; header.magic[1] = 'S';
+    header.magic[2] = 'R'; header.magic[3] = 'T';
     header.blockSize = blkSize;
     header.dataStartOffset = sizeof(FileHeader); // 此时 numSegments=0
     writePOD(file, &header, sizeof(header));
@@ -39,16 +42,27 @@ create(const std::string& fname, int blkSize) {
 /* 打开已有文件，把 header + 所有 meta 读进内存 */
 bool MergeSortFile::
 open() {
-    file.open(filename, std::ios::in | std::ios::out | std::ios::binary);
-    if (!file) return false;
+    if(!file.is_open()) {
+        //std::cout<<"打开"<<filename<<std::endl;
+        file.open(filename, std::ios::in | std::ios::out | std::ios::binary);
+        //std::cout<<"打开"<<filename<<"完成"<<std::endl;
+    }
+    if (!file.is_open()) return false;
     readPOD(file, &header, sizeof(header));
+    //std::cout<<"检查魔数"<<std::endl;
     if (std::string(header.magic, 4) != "MSRT") return false;
+    //std::cout<<"检查魔数通过"<<std::endl;
     segments.resize(header.numSegments);
     if (header.numSegments > 0) {
         file.seekg(sizeof(FileHeader));
         readPOD(file, segments.data(), segments.size() * sizeof(SegmentMetadata));
     }
     return true;
+}
+
+bool MergeSortFile::
+is_open() {
+    return file.is_open();
 }
 
 void MergeSortFile::
@@ -93,6 +107,32 @@ appendSegment(const std::vector<int>& sortedRun) {
     return true;
 }
 
+bool MergeSortFile::
+append(const std::vector<int>& sortedData) {
+    if (!file.is_open() && !open()) return false;
+    
+    // 确保至少有一个段存在
+    if (segments.empty() || header.numSegments == 0) return false;
+
+    size_t nBytes = sortedData.size() * sizeof(int);
+    
+    /* 数据 → EOF */
+    file.seekp(0, std::ios::end);
+    writePOD(file, sortedData.data(), nBytes);
+    
+    /* 更新最后一个段的元数据 */
+    SegmentMetadata& lastSegment = segments.back();
+    lastSegment.length += nBytes;
+    lastSegment.count += static_cast<int>(sortedData.size());
+    
+    // 更新文件中存储的段元数据
+    size_t metaPos = sizeof(FileHeader) + (header.numSegments - 1) * sizeof(SegmentMetadata);
+    file.seekp(metaPos);
+    writePOD(file, &lastSegment, sizeof(lastSegment));
+
+    return true;
+}
+
 /* 读取指定 run 到 buffer */
 bool MergeSortFile::
 readSegment(int segId, std::vector<int>& buffer) {
@@ -103,6 +143,33 @@ readSegment(int segId, std::vector<int>& buffer) {
     readPOD(file, buffer.data(), m.length);
     return true;
 }
+
+/* 流式读取指定run的一部分数据 */
+bool MergeSortFile::
+readSegmentChunk(int segId, size_t startOffset, size_t count, std::vector<int>& buffer) {
+    if (segId < 0 || segId >= header.numSegments) return false;
+    
+    const auto& m = segments[segId];
+    
+    // 检查边界
+    if (startOffset >= static_cast<size_t>(m.count) || 
+        startOffset + count > static_cast<size_t>(m.count)) {
+        return false;
+    }
+    
+    // 调整buffer大小
+    buffer.resize(count);
+    
+    // 计算文件中的实际偏移量
+    size_t fileOffset = m.offset + startOffset * sizeof(int);
+    
+    // 定位并读取数据
+    file.seekg(fileOffset);
+    readPOD(file, buffer.data(), count * sizeof(int));
+    
+    return true;
+}
+
 
 SegmentMetadata MergeSortFile::
 getSegmentInfo(int segId) const {
