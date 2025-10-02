@@ -21,6 +21,8 @@ add_executable(data_structure_specialized_pratice
     src/InputBuffer.cpp
     src/OutputBuffer.cpp
     src/MergeSortFile.cpp
+    src/TwoWayMerger.cpp
+    src/testGenRun.cpp
 )
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET data_structure_specialized_pratice PROPERTY CXX_STANDARD 20)

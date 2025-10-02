@@ -130,6 +130,7 @@ void testAppend() {
     std::cout << "追加数据测试完成" << std::endl;
 }
 
+/*
 int main() {
     std::cout << "开始测试MergeSortFile类..." << std::endl;
     
@@ -154,3 +155,4 @@ int main() {
     
     return 0;
 }
+*/

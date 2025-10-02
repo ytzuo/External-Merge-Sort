@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -31,10 +32,10 @@ static void readPOD(std::fstream& fs, void* pod, size_t sz) {
 
 class MergeSortFile {
 public:
-    explicit MergeSortFile(const std::string& fname) : filename(fname) {
-        this->file.open(filename);
+    explicit MergeSortFile(){};
+    explicit MergeSortFile(const std::string& fname) : filename(fname){
+        file.open(fname);
     }
-
     /* 创建空文件，只写头 */
     bool create(const std::string& fname, int blkSize);
 
@@ -48,7 +49,7 @@ public:
     bool is_open();
 
     /* 仅用于首次生成乱序数据：当作 segment-0 追加 */
-    bool genRawData(const std::string& fname, int segment_len);
+    bool genRawData(const std::string& fname, int segment_len, size_t blkSize);
 
     /* 通用追加：把 sortedData 作为新 run 写到 EOF，再追加 meta */
     bool appendSegment(const std::vector<int>& sortedRun);
@@ -67,6 +68,8 @@ public:
     
     /* 获取所有 run 的Meta */
     std::vector<SegmentMetadata> getAllSegmentInfo() const;
+
+    bool writeHeader(size_t blkSize);
 private:
     std::string filename;
     std::fstream file;
