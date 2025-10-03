@@ -6,10 +6,26 @@
 #include <vector>
 #include <cstddef>
 #include <iostream>
+#include "../include/Buffer.h"
 
 class TwoWayMerger {
+private:
+    /* 输入输出 Buffer 池 */
+    std::vector<InputBuffer>  InputBuffers;
+    std::vector<OutputBuffer> OutputBuffers;
 public:
+    /* 将 Buffer 加入 Buffer池 */
+    void addInputBuffer(const InputBuffer& buffer);
+    void addInputBuffer(InputBuffer&& buffer);
+    void addOutputBuffer(const OutputBuffer& buffer);
+    void addOutputBuffer(OutputBuffer&& buffer);
 
+    /* 内存中二路归并 -- 二输入二输出 */
+    void MergeInMem(std::string input_file, std::string output_file, 
+        int input1, int input2, int output1, int segNum);
+
+    /* 基于二路归并的外排序算法 */
+    void ExternalMergeSort();
 };
 
 inline bool genRun(std::string filename, std::string new_file, size_t block_size) {

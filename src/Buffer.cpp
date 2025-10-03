@@ -1,0 +1,67 @@
+#include "../include/Buffer.h"
+#include <cstddef>
+#include <fstream>
+#include <optional>
+#include <vector>
+
+/* 从磁盘读取数据填充Buffer */
+bool InputBuffer::
+fillFromDisk(int segId, size_t startOffset) {
+    if(!file.is_open()) return false;
+    buffer.clear();
+    bool ret =  file.readSegmentChunk(segId, startOffset, buffer_size, buffer);
+    if(ret == false)
+        finish = true;
+    return ret;
+}
+
+/* 首次生成归并段时用于获取单条记录 */
+int InputBuffer::
+getFromBuffer() {
+    return buffer.at(index++);
+}
+
+bool InputBuffer::
+empty() {
+    return index == buffer_size;
+}
+
+size_t InputBuffer::
+bufferSize() {
+    return buffer_size;
+}
+
+
+bool OutputBuffer::
+wrtiteSegToDisk() {
+    try {
+        if(!file.is_open()) return false;
+        file.appendSegment(buffer);
+        buffer.clear();
+        return true;
+    } catch(...) {
+        return false;
+    }
+}
+
+bool OutputBuffer::
+appendSegToDisk() {
+    try {
+        if(!file.is_open()) return false;
+        file.append(buffer);
+        buffer.clear();
+        return true;
+    } catch(...) {
+        return false;
+    }
+}
+
+void OutputBuffer::
+pushToBuffer(int num) {
+    buffer.push_back(num);
+}
+
+bool OutputBuffer::
+full() {
+    return buffer.size() == buffer_size;
+}
