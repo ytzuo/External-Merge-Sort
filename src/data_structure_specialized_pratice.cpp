@@ -11,7 +11,7 @@ void testCreateAndBasicOperations() {
     
     // 测试创建文件
     MergeSortFile msFile("test_data.dat");
-    assert(msFile.create("test_data.dat", 1024));
+    assert(msFile.create("test_data.dat", 1024, false));
     std::cout << "文件创建成功" << std::endl;
     
     // 手动创建一些测试数据来模拟genRawData的功能

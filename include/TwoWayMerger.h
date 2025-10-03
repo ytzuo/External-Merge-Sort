@@ -7,18 +7,17 @@
 #include <cstddef>
 #include <iostream>
 #include "../include/Buffer.h"
+#include <memory>
 
 class TwoWayMerger {
 private:
     /* 输入输出 Buffer 池 */
-    std::vector<InputBuffer>  InputBuffers;
-    std::vector<OutputBuffer> OutputBuffers;
+    std::vector<std::unique_ptr<InputBuffer>>  InputBuffers;
+    std::vector<std::unique_ptr<OutputBuffer>> OutputBuffers;
 public:
     /* 将 Buffer 加入 Buffer池 */
-    void addInputBuffer(const InputBuffer& buffer);
-    void addInputBuffer(InputBuffer&& buffer);
-    void addOutputBuffer(const OutputBuffer& buffer);
-    void addOutputBuffer(OutputBuffer&& buffer);
+    void addInputBuffer(std::unique_ptr<InputBuffer> buffer);
+    void addOutputBuffer(std::unique_ptr<OutputBuffer> buffer);
 
     /* 内存中二路归并 -- 二输入二输出 */
     void MergeInMem(std::string input_file, std::string output_file, 
@@ -35,7 +34,7 @@ inline bool genRun(std::string filename, std::string new_file, size_t block_size
         std::cout<<"成功打开初始文件"<<std::endl;
 
         MergeSortFile runFile(new_file);
-        if (!runFile.create(new_file, block_size)) return false;
+        if (!runFile.create(new_file, block_size, false)) return false;
         if (!runFile.open()) return false;
         std::cout<<"成功创建新文件"<<std::endl;
 
@@ -48,7 +47,7 @@ inline bool genRun(std::string filename, std::string new_file, size_t block_size
         while(file.readSegmentChunk(0, startOffset, block_size, temp)) {
             hasData = true;
             // 排序, 生成初始有序run
-            std::cout<<"temp.size(): "<<temp.size()<<std::endl;
+            //std::cout<<"temp.size(): "<<temp.size()<<std::endl;
             std::sort(temp.begin(), temp.end());
             // 写回排序好的run
             if (!runFile.appendSegment(temp)) {

@@ -75,4 +75,10 @@ public:
     void pushToBuffer(int num);
 
     bool full();
+
+    bool empty();
+
+    int size();
+
+    void clear();
 };

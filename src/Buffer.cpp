@@ -65,3 +65,18 @@ bool OutputBuffer::
 full() {
     return buffer.size() == buffer_size;
 }
+
+bool OutputBuffer::
+empty() {
+    return buffer.size() == 0;
+}
+
+int OutputBuffer::
+size() {
+    return buffer.size();
+}
+
+void OutputBuffer::
+clear() {
+    buffer.clear();
+}

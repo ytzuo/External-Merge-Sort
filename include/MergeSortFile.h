@@ -37,7 +37,7 @@ public:
         file.open(fname);
     }
     /* 创建空文件，只写头 */
-    bool create(const std::string& fname, int blkSize);
+    bool create(const std::string& fname, int blkSize, bool init);
 
     /* 打开已有文件，把 header + 所有 meta 读进内存 */
     bool open();

@@ -13,7 +13,7 @@
 /* 仅用于首次灌乱序数据：当作 segment-0 追加 */
 bool MergeSortFile::
 genRawData(const std::string& fname, int segment_len, size_t blkSize) {
-    if (!create(fname, blkSize)) return false;   // blockSize 随便给
+    if (!create(fname, blkSize, false)) return false;   // blockSize 随便给
     std::vector<int> tmp(segment_len);
     std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> dist(0, 10000);  // 限制随机数范围在0-10000之间
@@ -23,7 +23,7 @@ genRawData(const std::string& fname, int segment_len, size_t blkSize) {
 
 /* 创建空文件，只写头 */
 bool MergeSortFile::
-create(const std::string& fname, int blkSize) {
+create(const std::string& fname, int blkSize, bool init=false) {
     filename = fname;
     if(!file.is_open())
         file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -36,11 +36,25 @@ create(const std::string& fname, int blkSize) {
     header.dataStartOffset = sizeof(FileHeader); // 此时 numSegments=0
     writePOD(file, &header, sizeof(header));
     
-    // 预留空间用于存储段元数据，避免与数据区域重叠
     // 留出足够的空间存储至少100个段的元数据
     const size_t reservedMetaSpace = 100 * sizeof(SegmentMetadata);
-    file.seekp(sizeof(FileHeader) + reservedMetaSpace);
-    writePOD(file, static_cast<const void*>(&header), sizeof(header)); // 写入一个空字节作为占位符
+    if(init) {
+        SegmentMetadata meta{ sizeof(FileHeader)+reservedMetaSpace, 0, 0, false};
+        size_t metaPos = sizeof(FileHeader);
+        file.seekp(metaPos);
+        writePOD(file, &meta, sizeof(meta));
+        // 更新header中的段数量
+        header.numSegments = 1;
+        file.seekp(0);
+        writePOD(file, &header, sizeof(header));
+        // 预留空间用于存储段元数据，避免与数据区域重叠
+        file.seekp(sizeof(FileHeader) + reservedMetaSpace-sizeof(meta));
+        writePOD(file, static_cast<const void*>(&header), sizeof(header)); // 写入一个空字节作为占位符
+    } else {
+        // 预留空间用于存储段元数据，避免与数据区域重叠
+        file.seekp(sizeof(FileHeader) + reservedMetaSpace);
+        writePOD(file, static_cast<const void*>(&header), sizeof(header)); // 写入一个空字节作为占位符
+    }
     
     file.close();
     segments.clear();
@@ -107,13 +121,13 @@ appendSegment(const std::vector<int>& sortedRun) {
     /* 1. 数据 → EOF */
     file.seekp(0, std::ios::end);
     size_t runOffset = file.tellp();
-    std::cout<<"runOffset: "<<runOffset<<std::endl;
+    //std::cout<<"runOffset: "<<runOffset<<std::endl;
     writePOD(file, sortedRun.data(), nBytes);
 
     /* 2. meta → 当前 metaTail */
     SegmentMetadata meta{ runOffset, nBytes, static_cast<int>(sortedRun.size()), true };
     size_t metaPos = sizeof(FileHeader) + header.numSegments * sizeof(SegmentMetadata);
-    std::cout<<"metaPos: "<<metaPos<<std::endl;
+    //std::cout<<"meta.conut: "<<meta.count<<std::endl;
     file.seekp(metaPos);
     writePOD(file, &meta, sizeof(meta));
 
@@ -174,6 +188,7 @@ readSegmentChunk(int segId, size_t startOffset, size_t count, std::vector<int>& 
     
     // 检查边界
     if (startOffset >= static_cast<size_t>(m.count)) {
+        //std::cout<<startOffset<<" "<<static_cast<size_t>(m.count)<<std::endl;
         std::cout<<"startOffset >= static_cast<size_t>(m.count)"<<std::endl;
         return false;
     }

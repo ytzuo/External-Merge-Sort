@@ -61,7 +61,9 @@ void testGenRun() {
     std::filesystem::remove(runFile);
 }
 
+/*
 int main() {
     testGenRun();
     return 0;
 }
+*/
