@@ -1,6 +1,7 @@
 #include "../include/Buffer.h"
 #include <cstddef>
 #include <vector>
+//#include <iostream>
 
 /* 从磁盘读取数据填充Buffer */
 bool InputBuffer::
@@ -21,6 +22,7 @@ getFromBuffer() {
 
 bool InputBuffer::
 empty() {
+    //std::cout<<"IN empty() "<<index<<std::endl;
     return index == buffer_size;
 }
 
@@ -61,6 +63,7 @@ pushToBuffer(int num) {
 
 bool OutputBuffer::
 full() {
+    //std::cout<<"IN full() "<<buffer.size()<<std::endl;
     return buffer.size() == buffer_size;
 }
 

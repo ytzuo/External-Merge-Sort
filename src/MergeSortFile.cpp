@@ -68,6 +68,7 @@ open() {
         //std::cout<<"打开"<<filename<<"完成"<<std::endl;
     }
     if (!file.is_open()) return false;
+    file.seekg(0);
     readPOD(file, &header, sizeof(header));
     //std::cout<<"检查魔数"<<std::endl;
     if (std::string(header.magic, 4) != "MSRT") return false;
@@ -93,12 +94,44 @@ close() {
 }
 SegmentMetadata MergeSortFile::
 getSegmentInfo(int segId) const {
-        return segments.at(segId);
+    // 创建一个非const副本以重新读取元数据
+    MergeSortFile* self = const_cast<MergeSortFile*>(this);
+    
+    // 确保文件已打开
+    if (!self->file.is_open()) {
+        self->file.open(self->filename, std::ios::in | std::ios::out | std::ios::binary);
+    }
+    
+    // 重新读取指定段的元数据
+    self->file.seekg(sizeof(FileHeader) + segId * sizeof(SegmentMetadata));
+    SegmentMetadata meta;
+    readPOD(self->file, &meta, sizeof(meta));
+    
+    return meta;
 }
 
 std::vector<SegmentMetadata> MergeSortFile::
 getAllSegmentInfo() const {
-    return segments;    
+    // 创建一个非const副本以重新读取元数据
+    MergeSortFile* self = const_cast<MergeSortFile*>(this);
+    
+    // 重新打开文件以确保能读取最新数据
+    if (!self->file.is_open()) {
+        self->file.open(self->filename, std::ios::in | std::ios::out | std::ios::binary);
+    }
+    
+    // 重新读取头部信息
+    self->file.seekg(0);
+    readPOD(self->file, &self->header, sizeof(self->header));
+    
+    // 重新读取所有段元数据
+    self->segments.resize(self->header.numSegments);
+    if (self->header.numSegments > 0) {
+        self->file.seekg(sizeof(FileHeader));
+        readPOD(self->file, self->segments.data(), self->segments.size() * sizeof(SegmentMetadata));
+    }
+    
+    return self->segments;
 }
 
 static std::vector<int> makeRawRun(int len) {
@@ -135,14 +168,20 @@ appendSegment(const std::vector<int>& sortedRun) {
     writePOD(file, &header, sizeof(header));
 
     segments.push_back(meta);
+    
+    // 强制将更改刷新到磁盘
+    file.flush();
+    
     return true;
 }
 bool MergeSortFile::
 append(const std::vector<int>& sortedData) {
+    std::cout<<"append()!"<<std::endl;
     if (!file.is_open() && !open()) return false;
     
     // 确保至少有一个段存在
     if (segments.empty() || header.numSegments == 0) return false;
+    std::cout<<"IN append() numSegments "<<header.numSegments<<std::endl;
 
     size_t nBytes = sortedData.size() * sizeof(int);
     
@@ -154,11 +193,15 @@ append(const std::vector<int>& sortedData) {
     SegmentMetadata& lastSegment = segments.back();
     lastSegment.length += nBytes;
     lastSegment.count += static_cast<int>(sortedData.size());
+    std::cout<<filename<<" lastSegment.count: "<<lastSegment.count<<std::endl;
     
     // 更新文件中存储的段元数据
     size_t metaPos = sizeof(FileHeader) + (header.numSegments - 1) * sizeof(SegmentMetadata);
     file.seekp(metaPos);
     writePOD(file, &lastSegment, sizeof(lastSegment));
+    
+    // 强制将更改刷新到磁盘
+    file.flush();
 
     return true;
 }
@@ -166,9 +209,15 @@ append(const std::vector<int>& sortedData) {
 /* 读取指定 run 到 buffer */
 bool MergeSortFile::
 readSegment(int segId, std::vector<int>& buffer) {
-    std::cout<<"header.numSegments: "<<header.numSegments<<std::endl;
+    //std::cout<<"header.numSegments: "<<header.numSegments<<std::endl;
     if (segId < 0 || segId >= header.numSegments) return false;
-    const auto& m = segments[segId];
+    
+    // 重新加载元数据以确保获取最新信息
+    file.seekg(sizeof(FileHeader) + segId * sizeof(SegmentMetadata));
+    SegmentMetadata m;
+    readPOD(file, &m, sizeof(m));
+    
+    std::cout<<filename<<" m.count: "<<m.count<<std::endl;
     buffer.resize(m.count);
     file.seekg(m.offset);
     readPOD(file, buffer.data(), m.length);
