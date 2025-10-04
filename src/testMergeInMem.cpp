@@ -95,8 +95,9 @@ void testMergeInMem() {
     std::filesystem::remove(run2File);
     std::filesystem::remove(mergedFile);
 }
-
+/*
 int main() {
     testMergeInMem();
     return 0;
 }
+*/

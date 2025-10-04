@@ -1,7 +1,5 @@
 #include "../include/Buffer.h"
 #include <cstddef>
-#include <fstream>
-#include <optional>
 #include <vector>
 
 /* 从磁盘读取数据填充Buffer */

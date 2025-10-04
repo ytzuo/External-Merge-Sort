@@ -24,7 +24,7 @@ public:
         int input1, int input2, int output1, int segNum);
 
     /* 基于二路归并的外排序算法 */
-    void ExternalMergeSort();
+    void ExternalMergeSort(std::string initial_runs, size_t block_size);
 };
 
 inline bool genRun(std::string filename, std::string new_file, size_t block_size) {

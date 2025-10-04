@@ -96,6 +96,66 @@ MergeInMem(std::string input_file, std::string output_file,
 }
 
 void TwoWayMerger::
-ExternalMergeSort() {
+ExternalMergeSort(std::string initial_runs, size_t block_size) {
+    // 1. 生成初始有序段（如果尚未完成）
     
+    // 2. 多轮二路归并
+    std::string currentFile = initial_runs;  // 包含初始有序段的文件
+    int pass = 0;
+    
+    while (true) {
+        MergeSortFile inputFile(currentFile);
+        if (!inputFile.open()) {
+            std::cerr << "无法打开文件: " << currentFile << std::endl;
+            return;
+        }
+        
+        auto segments = inputFile.getAllSegmentInfo();
+        if (segments.size() <= 1) {
+            // 排序完成
+            inputFile.close();
+            break;
+        }
+        
+        // 创建输出文件
+        std::string outputFile = "pass_" + std::to_string(pass) + ".msrt";
+        MergeSortFile outputMsFile(outputFile);
+        outputMsFile.create(outputFile, segments[0].count, true); // 假设所有段大小相同
+        outputMsFile.close();
+
+        // 创建输出缓冲区
+        OutputBuffers.clear();
+        auto outputBuffer = std::make_unique<OutputBuffer>(outputFile, block_size);
+        addOutputBuffer(std::move(outputBuffer));
+
+        // 创建输入缓冲区
+        InputBuffers.clear();
+        for (size_t i = 0; i < segments.size(); i++) {
+            auto inputBuffer = std::make_unique<InputBuffer>(currentFile, block_size);
+            addInputBuffer(std::move(inputBuffer));
+        }
+        
+        // 对相邻的段进行二路归并
+        for (size_t i = 0; i < segments.size(); i += 2) {
+            if (i + 1 < segments.size()) {
+                // 有两个段可以归并
+                // 使用MergeInMem进行归并
+                // 注意：需要正确设置输入输出缓冲区
+                MergeInMem(currentFile, outputFile, i, i+1, 0, 2);
+            } else {
+                // 只有一个段，直接复制到输出文件
+                while(!InputBuffers[i]->empty()) {
+                    OutputBuffers[0]->pushToBuffer(InputBuffers[i]->getFromBuffer());
+                }
+                OutputBuffers[0]->appendSegToDisk();
+            }
+        }
+        
+        // 准备下一轮
+        currentFile = outputFile;
+        pass++;
+        inputFile.close();
+    }
+    
+    // 最终结果保存在currentFile中
 }
