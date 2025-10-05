@@ -20,7 +20,6 @@ public:
         index(0), 
         file(filename) {
         this->file.open();
-        this->buffer.resize(buffer_size);
     }
 
     ~InputBuffer() {
@@ -70,6 +69,8 @@ public:
 
     /* 将当前Buffer内的数据加入文件最后一个 run 末尾 */
     bool appendSegToDisk();
+
+    void createNewSeg();
 
     /* 将胜出的元素加入Buffer */
     void pushToBuffer(int num);

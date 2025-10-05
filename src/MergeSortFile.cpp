@@ -37,7 +37,11 @@ create(const std::string& fname, int blkSize, bool init=false) {
     // 留出足够的空间存储至少100个段的元数据
     const size_t reservedMetaSpace = 100 * sizeof(SegmentMetadata);
     if(init) {
-        SegmentMetadata meta{ sizeof(FileHeader)+reservedMetaSpace, 0, 0, false};
+        SegmentMetadata meta{ 
+            sizeof(FileHeader)+reservedMetaSpace, 
+            0, 
+            0, 
+            false};
         size_t metaPos = sizeof(FileHeader);
         file.seekp(metaPos);
         writePOD(file, &meta, sizeof(meta));
@@ -156,9 +160,13 @@ appendSegment(const std::vector<int>& sortedRun) {
     writePOD(file, sortedRun.data(), nBytes);
 
     /* 2. meta → 当前 metaTail */
-    SegmentMetadata meta{ runOffset, nBytes, static_cast<int>(sortedRun.size()), true };
+    SegmentMetadata meta{ 
+        runOffset, 
+        nBytes, 
+        static_cast<int>(sortedRun.size()), 
+        true };
     size_t metaPos = sizeof(FileHeader) + header.numSegments * sizeof(SegmentMetadata);
-    //std::cout<<"meta.conut: "<<meta.count<<std::endl;
+    std::cout<<"metaPos: "<<metaPos<<std::endl;
     file.seekp(metaPos);
     writePOD(file, &meta, sizeof(meta));
 

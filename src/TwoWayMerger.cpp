@@ -202,13 +202,14 @@ ExternalMergeSort(std::string initial_runs, size_t block_size) {
 
         // 创建输出缓冲区
         OutputBuffers.clear();
-        auto outputBuffer = std::make_unique<OutputBuffer>(outputFile, block_size);
+        size_t buffer_size = block_size*int(pow(2, pass));
+        auto outputBuffer = std::make_unique<OutputBuffer>(outputFile, buffer_size);
         addOutputBuffer(std::move(outputBuffer));
 
         // 创建输入缓冲区
         InputBuffers.clear();
         for (size_t i = 0; i < segments.size(); i++) {
-            auto inputBuffer = std::make_unique<InputBuffer>(currentFile, block_size);
+            auto inputBuffer = std::make_unique<InputBuffer>(currentFile, buffer_size);
             addInputBuffer(std::move(inputBuffer));
         }
         
@@ -218,7 +219,10 @@ ExternalMergeSort(std::string initial_runs, size_t block_size) {
                 // 有两个段可以归并
                 // 使用MergeInMem进行归并
                 // 注意：需要正确设置输入输出缓冲区
-                MergeInMem(currentFile, outputFile, i, i+1, 0, 2);
+                MergeInMem(currentFile, outputFile, 
+                    i, i+1, 0, 2);
+                if(i + 2 != segments.size()) 
+                    OutputBuffers[0] -> createNewSeg();
             } else {
                 // 只有一个段，直接复制到输出文件
                 InputBuffers[i]->fillFromDisk(i, 0);

@@ -57,6 +57,17 @@ appendSegToDisk() {
 }
 
 void OutputBuffer::
+createNewSeg() {
+    // 首先将当前缓冲区的数据写入磁盘（如果有的话）
+    if (!empty()) {
+        wrtiteSegToDisk();
+    }
+    // 总是创建一个新段，而不是检查文件是否为空
+    std::vector<int> emptyRun;
+    file.appendSegment(emptyRun);
+}
+
+void OutputBuffer::
 pushToBuffer(int num) {
     buffer.push_back(num);
 }

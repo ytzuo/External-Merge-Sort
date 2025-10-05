@@ -7,14 +7,15 @@
 
 void testExternalMergeSort() {
     std::cout << "开始 testExternalMergeSort()" << std::endl;
-    size_t block_size = 1024;
+    size_t block_size = 16;
+    size_t run_num = 16;
     std::string rawFile = "raw_for_ext_sort.msrt";
     std::string runFile = "run_for_ext_sort.msrt";
 
     // 生成原始数据
     std::cout << "开始生成原始数据" << std::endl;
     MergeSortFile raw(rawFile);
-    assert(raw.genRawData(rawFile, 2*1024, 2*1024)); // 生成更大的数据集以便测试多轮归并
+    assert(raw.genRawData(rawFile, run_num*block_size, run_num*block_size)); // 生成更大的数据集以便测试多轮归并
     if(raw.is_open())
         raw.close();
     std::cout << "原始数据生成完成" << std::endl;
@@ -80,7 +81,15 @@ void testExternalMergeSort() {
             // 验证结果是否已排序
             bool isSorted = std::is_sorted(buffer.begin(), buffer.end());
             std::cout << "排序结果" << (isSorted ? "正确" : "错误") << std::endl;
-            
+            //if(!isSorted) {
+            std::cout<<"输出所有元素"<<std::endl;
+                int index = 0;
+                for(int i = 0; i < run_num; i++) {
+                    for(int j = 0 ; j < block_size; j++) 
+                        std::cout<<buffer[index++]<<" ";
+                    std::cout<<std::endl<<std::endl;
+                }
+            //}
             // 打印前几个和后几个元素
             std::cout << "前10个元素: ";
             for(size_t j = 0; j < buffer.size() && j < 10; j++) {
