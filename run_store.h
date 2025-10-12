@@ -2,6 +2,7 @@
 #include "multi_run_file.h"
 #include <memory>
 
+/* 操作文件类 */
 class RunStore {
 public:
     explicit RunStore(const std::string &path, bool new_file = false, 
