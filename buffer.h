@@ -7,7 +7,7 @@
 /* 输入缓冲区类，用于从RunStore读取数据 */
 class InputBuffer {
 public:
-    InputBuffer(RunStore& store, uint32_t run_id);
+    InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size = 1 << 20);
     
     /* 检查是否还有数据可读 */
     bool has_next() const;
@@ -16,12 +16,21 @@ public:
     int64_t next();
     
     /* 预读下一个元素但不移动指针 */
-    int64_t peek() const;
+    int64_t peek();
     
 private:
-    const int64_t* data_;
-    uint64_t size_;
-    uint64_t pos_;
+    RunStore& store_;
+    uint32_t run_id_;
+    
+    std::vector<int64_t> buffer_;
+    size_t buffer_size_;
+    size_t buffer_pos_;  // 当前在缓冲区中的位置
+    size_t buffer_end_;  // 缓冲区中有效数据的结束位置
+    uint64_t total_size_; // run的总大小
+    uint64_t consumed_;   // 已经消费的数据数量
+    
+    /* 从磁盘加载下一块数据到缓冲区 */
+    void load_next_block();
 };
 
 /* 输出缓冲区类，用于向RunStore写入数据 */

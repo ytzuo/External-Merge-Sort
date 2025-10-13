@@ -120,3 +120,25 @@ MappedRange MultiRunFile::map_run(uint32_t run_id) const {
     /* 创建并返回新的 MappedRange */
     return { impl->buffer.data(), e.bytes, impl };
 }
+
+MappedRange MultiRunFile::map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const {
+    chk(run_id < header_.run_count, "run_id out of range");
+    const RunEntry &e = directory_[run_id]; // 获取指定元数据
+    
+    // 检查边界
+    chk(offset < e.keys, "offset out of range");
+    chk(offset + count <= e.keys, "count out of range");
+    
+    const uint64_t byte_offset = offset * sizeof(int64_t);
+    const uint64_t byte_count = count * sizeof(int64_t);
+    
+    /* 创建新的 Impl 来存储 run 的一部分 */
+    auto impl = new MappedRange::Impl;
+    impl->buffer.resize(byte_count);
+    file_.seekg(e.offset + byte_offset);
+    file_.read(reinterpret_cast<char*>(impl->buffer.data()), byte_count);
+    chk(file_.good(), "read partial run data");
+    
+    /* 创建并返回新的 MappedRange */
+    return { impl->buffer.data(), byte_count, impl };
+}

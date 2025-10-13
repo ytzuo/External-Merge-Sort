@@ -2,7 +2,7 @@
 #include "multi_run_file.h"
 #include <memory>
 
-/* 操作文件类 */
+/* 操作文件类, 向上层隐藏文件操作的细节 */
 class RunStore {
 public:
     explicit RunStore(const std::string &path, bool new_file = false, 
@@ -17,6 +17,13 @@ public:
     /* 返回的 run 只读 */
     std::pair<const int64_t*, uint64_t> get_run(const uint32_t id) {
         MappedRange m = file_->map_run(id);
+        return {reinterpret_cast<const int64_t*>(m.data),
+                m.bytes / sizeof(int64_t)};
+    }
+
+    /* 部分读取run */
+    std::pair<const int64_t*, uint64_t> get_run_range(const uint32_t id, uint64_t offset, uint64_t count) {
+        MappedRange m = file_->map_run_range(id, offset, count);
         return {reinterpret_cast<const int64_t*>(m.data),
                 m.bytes / sizeof(int64_t)};
     }
