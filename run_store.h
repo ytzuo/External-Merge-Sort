@@ -6,7 +6,7 @@
 class RunStore {
 public:
     explicit RunStore(const std::string &path, bool new_file = false, 
-        uint32_t block_size = 1 << 22) // 等价于2^22
+        uint32_t block_size = 1 << 22) // 等价于2^21
         : file_(std::make_unique<MultiRunFile>(path, new_file, block_size)){}
     
 
@@ -26,6 +26,11 @@ public:
         MappedRange m = file_->map_run_range(id, offset, count);
         return {reinterpret_cast<const int64_t*>(m.data),
                 m.bytes / sizeof(int64_t)};
+    }
+
+    /* 获取run中元素的数量 */
+    uint64_t get_run_size(const uint32_t id) {
+        return file_->get_run_size(id);
     }
 
     uint32_t run_count() const {

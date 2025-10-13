@@ -30,6 +30,7 @@ public:
     void append_run(const int64_t *keys, uint64_t n);   // 追加一个 run
     MappedRange map_run(uint32_t run_id) const;         // 只读映射第 run_id 个 run
     MappedRange map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const;
+    uint64_t get_run_size(uint32_t run_id) const;       // 获取 run 中元素的数量
     uint32_t run_count() const { return header_.run_count; }
 
 private:

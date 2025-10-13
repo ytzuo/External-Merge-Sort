@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include <queue>
 #include <vector>
+#include <iostream>
 
 static constexpr size_t MEM_BUF = 1 << 20; // 8MB 内存缓冲
 
@@ -10,13 +11,17 @@ static void two_way_merge(RunStore &store,
                           uint32_t id1, uint32_t id2,
                           RunStore &out_store) 
 {
+    std::cout << "开始两路归并: run_id1=" << id1 << ", run_id2=" << id2 << std::endl;
+    
     InputBuffer buf1(store, id1);
     InputBuffer buf2(store, id2);
     OutputBuffer out_buf(out_store);
 
     /* 归并两个已排序序列 */
     while (buf1.has_next() && buf2.has_next()) {
-        if (buf1.peek() <= buf2.peek()) {
+        int64_t val1 = buf1.peek();
+        int64_t val2 = buf2.peek();
+        if (val1 <= val2) {
             out_buf.add(buf1.next());
         } else {
             out_buf.add(buf2.next());
@@ -31,6 +36,8 @@ static void two_way_merge(RunStore &store,
     while (buf2.has_next()) {
         out_buf.add(buf2.next());
     }
+    
+    std::cout << "完成两路归并: 生成新的run_id=" << (out_store.run_count() - 1) << std::endl;
 }
 
 std::unique_ptr<MergePlanNode>
@@ -38,11 +45,20 @@ make_binary_merge_plan(RunStore &store,
                        std::vector<uint32_t> runs) {
     if(runs.empty()) return nullptr;
 
+    std::cout << "构建二路归并计划树，输入runs: ";
+    for (auto id : runs) {
+        std::cout << id << " ";
+    }
+    std::cout << std::endl;
+
     /* 首先为每个 run 构造叶子节点 */
     std::vector<std::unique_ptr<MergePlanNode>> trees;
     for(auto id : runs) {
         auto[p, n] = store.get_run(id);
-        trees.push_back(std::make_unique<MergePlanNode>(true,  store.path(), n));
+        auto node = std::make_unique<MergePlanNode>(true, store.path(), n);
+        node->id = id;  // 设置节点的id
+        trees.push_back(std::move(node));
+        std::cout << "创建叶子节点: id=" << id << ", length=" << n << std::endl;
     }
 
     auto cmp = [](const auto& a, const auto& b){
@@ -64,8 +80,15 @@ make_binary_merge_plan(RunStore &store,
         parent->right = std::move(r);
         parent->run_length =
             parent->left->run_length + parent->right->run_length;
+        std::cout << "创建内部节点: left_id=" << parent->left->id 
+                  << " (len=" << parent->left->run_length << ")"
+                  << ", right_id=" << parent->right->id 
+                  << " (len=" << parent->right->run_length << ")"
+                  << ", combined_len=" << parent->run_length << std::endl;
         pq.push(std::move(parent));
     }
+    
+    std::cout << "二路归并计划树构建完成" << std::endl;
     return pq.empty() ? nullptr : std::move(const_cast<std::unique_ptr<MergePlanNode>&>(pq.top()));
 }
 
@@ -74,8 +97,18 @@ void excute_merge_plan(MergePlanNode *root,
                        RunStore &in_store,
                        RunStore &out_store)
 {
-    if(root == nullptr) return;
-    if(root->is_leaf) return;
+    if(root == nullptr) {
+        std::cout << "归并计划树为空，无需执行" << std::endl;
+        return;
+    }
+    if(root->is_leaf) {
+        std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
+        return;
+    }
+    
+    std::cout << "执行归并计划节点: left_id=" << root->left->id 
+              << ", right_id=" << root->right->id << std::endl;
+    
     excute_merge_plan(root->left.get() , in_store, out_store);
     excute_merge_plan(root->right.get(), in_store, out_store);
 
@@ -83,4 +116,7 @@ void excute_merge_plan(MergePlanNode *root,
     uint32_t id2 = root->right->id;
     two_way_merge(in_store, id1, id2, out_store);
     root->id = out_store.run_count() - 1; // 记录新 run 编号
+    
+    std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
+              << ", result_id=" << root->id << std::endl;
 }

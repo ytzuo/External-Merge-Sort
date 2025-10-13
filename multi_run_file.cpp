@@ -4,6 +4,7 @@
 #include <cstring>
 #include <ios>
 #include <stdexcept>
+#include <sstream>
 
 /* 异常处理辅助函数 */
 static void chk(bool cond, const std::string& msg) {
@@ -33,7 +34,7 @@ MultiRunFile::MultiRunFile(const std::string &path, bool new_file,
     uint32_t block_size)
     :path_(path), write_offset_(0){
     if(new_file) { // 新文件, 要写入Header等基本信息
-        file_.open(path, std::ios::binary | std::ios::out | std::ios::trunc);
+        file_.open(path, std::ios::binary | std::ios::out | std::ios::trunc | std::ios::in);
         chk(file_.is_open(), "open for write");
 
         header_.block_sz         = block_size;
@@ -86,7 +87,7 @@ void MultiRunFile::append_run(const int64_t *keys, uint64_t n) {
         chk(file_.good(), "pad zero");
     }
 
-    directory_.push_back({write_offset_, n, aligned});
+    directory_.push_back({write_offset_, n, bytes});  // 使用实际字节数而不是对齐后的字节数
     write_offset_ += aligned;
     header_.run_count++;
 }
@@ -107,7 +108,11 @@ void MultiRunFile::flush_directory() {
 }
 
 MappedRange MultiRunFile::map_run(uint32_t run_id) const {
-    chk(run_id < header_.run_count, "run_id out of range");
+    if (!(run_id < header_.run_count)) {
+        std::ostringstream oss;
+        oss << "run_id " << run_id << " out of range (max " << header_.run_count - 1 << ')';
+        throw std::runtime_error(oss.str());
+    }
     const RunEntry &e = directory_[run_id]; // 获取指定元数据
 
     /* 创建新的 Impl 来存储整个 run */
@@ -115,19 +120,44 @@ MappedRange MultiRunFile::map_run(uint32_t run_id) const {
     impl->buffer.resize(e.bytes);
     file_.seekg(e.offset);
     file_.read(reinterpret_cast<char*>(impl->buffer.data()), e.bytes);
-    chk(file_.good(), "read run data");
+    if (!file_.good()) {
+        std::ostringstream oss;
+        oss << "read run data failed. run_id: " << run_id 
+            << ", offset: " << e.offset 
+            << ", bytes: " << e.bytes;
+        throw std::runtime_error(oss.str());
+    }
     
     /* 创建并返回新的 MappedRange */
     return { impl->buffer.data(), e.bytes, impl };
 }
 
 MappedRange MultiRunFile::map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const {
-    chk(run_id < header_.run_count, "run_id out of range");
+    if (!(run_id < header_.run_count)) {
+        std::ostringstream oss;
+        oss << "run_id " << run_id << " out of range (max " << header_.run_count - 1 << ')';
+        throw std::runtime_error(oss.str());
+    }
     const RunEntry &e = directory_[run_id]; // 获取指定元数据
     
     // 检查边界
-    chk(offset < e.keys, "offset out of range");
-    chk(offset + count <= e.keys, "count out of range");
+    if (!(offset < e.keys)) {
+        std::ostringstream oss;
+        oss << "offset " << offset << " out of range (max " << e.keys - 1 << ')';
+        throw std::runtime_error(oss.str());
+    }
+    
+    if (!(offset + count <= e.keys)) {
+        std::ostringstream oss;
+        oss << "offset+count " << (offset + count) << " out of range (e.keys " << e.keys << ')';
+        throw std::runtime_error(oss.str());
+    }
+    
+    // 特殊情况处理：如果count为0，直接返回空的范围
+    if (count == 0) {
+        auto impl = new MappedRange::Impl;
+        return { nullptr, 0, impl };
+    }
     
     const uint64_t byte_offset = offset * sizeof(int64_t);
     const uint64_t byte_count = count * sizeof(int64_t);
@@ -137,8 +167,23 @@ MappedRange MultiRunFile::map_run_range(uint32_t run_id, uint64_t offset, uint64
     impl->buffer.resize(byte_count);
     file_.seekg(e.offset + byte_offset);
     file_.read(reinterpret_cast<char*>(impl->buffer.data()), byte_count);
-    chk(file_.good(), "read partial run data");
+    if (!file_.good()) {
+        std::ostringstream oss;
+        oss << "read partial run data failed. run_id: " << run_id 
+            << ", offset: " << (e.offset + byte_offset)
+            << ", bytes: " << byte_count;
+        throw std::runtime_error(oss.str());
+    }
     
     /* 创建并返回新的 MappedRange */
     return { impl->buffer.data(), byte_count, impl };
+}
+
+uint64_t MultiRunFile::get_run_size(uint32_t run_id) const {
+    if (!(run_id < header_.run_count)) {
+        std::ostringstream oss;
+        oss << "run_id " << run_id << " out of range (max " << header_.run_count - 1 << ')';
+        throw std::runtime_error(oss.str());
+    }
+    return directory_[run_id].keys;
 }

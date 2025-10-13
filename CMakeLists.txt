@@ -7,5 +7,7 @@ add_executable(data_structure_specialized_pratice
                main.cpp
                multi_run_file.cpp
                run_store.cpp
-               merge_plan.cpp)
+               merge_plan.cpp
+               merge_plan_tree_test.cpp
+               buffer.cpp)
 target_link_libraries(data_structure_specialized_pratice Threads::Threads)

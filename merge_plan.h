@@ -18,12 +18,12 @@ struct MergePlanNode {
     //: is_leaf(leaf), run_fname(file), run_length(len), id(i) {}
 
     MergePlanNode(bool leaf, const std::string &file = "", size_t len = 0)
-    : is_leaf(leaf), run_fname(file), run_length(len) {}
+    : is_leaf(leaf), run_fname(file), run_length(len), id(0) {}
 };
 
 /* 建立一棵二路归并的归并计划树 */
 std::unique_ptr<MergePlanNode>
-make_binary_merge_plan(std::vector<std::string> runs);
+make_binary_merge_plan(RunStore &store, std::vector<uint32_t> runs);
 
 /* 执行操作计划 */
 void excute_merge_plan(MergePlanNode *root,
