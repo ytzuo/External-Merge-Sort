@@ -1,29 +1,36 @@
 #include "merge_plan.h"
 #include "run_store.h"
+#include "buffer.h"
 #include <queue>
 #include <vector>
 
 static constexpr size_t MEM_BUF = 1 << 20; // 8MB 内存缓冲
 
-/* 完成后让AI将[p, n]相关操作封装为Buffer */
 static void two_way_merge(RunStore &store,
                           uint32_t id1, uint32_t id2,
                           RunStore &out_store) 
 {
-    auto[p1, n1] = store.get_run(id1);
-    auto[p2, n2] = store.get_run(id2);
-    uint64_t i = 0, j = 0; // 归并指针
-    
-    /* 输出缓冲区 */
-    std::vector<int64_t> out;
-    out.reserve(n1 + n2);
-    while (i < n1 && j < n2) {
-        if (p1[i] <= p2[j]) out.push_back(p1[i++]);
-        else out.push_back(p2[j++]);
+    InputBuffer buf1(store, id1);
+    InputBuffer buf2(store, id2);
+    OutputBuffer out_buf(out_store);
+
+    /* 归并两个已排序序列 */
+    while (buf1.has_next() && buf2.has_next()) {
+        if (buf1.peek() <= buf2.peek()) {
+            out_buf.add(buf1.next());
+        } else {
+            out_buf.add(buf2.next());
+        }
     }
-    while (i < n1) out.push_back(p1[i++]);
-    while (j < n2) out.push_back(p2[j++]);
-    out_store.add_run(out);
+    
+    /* 处理剩余元素 */
+    while (buf1.has_next()) {
+        out_buf.add(buf1.next());
+    }
+    
+    while (buf2.has_next()) {
+        out_buf.add(buf2.next());
+    }
 }
 
 std::unique_ptr<MergePlanNode>
@@ -74,6 +81,6 @@ void excute_merge_plan(MergePlanNode *root,
 
     uint32_t id1 = root->left->id;
     uint32_t id2 = root->right->id;
-    two_way_merge(out_store, id1, id2, out_store);
+    two_way_merge(in_store, id1, id2, out_store);
     root->id = out_store.run_count() - 1; // 记录新 run 编号
 }
