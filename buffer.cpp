@@ -17,7 +17,7 @@ InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size)
         total_size_ = 0;
     }
     
-    std::cout << "创建InputBuffer: run_id=" << run_id << ", total_size=" << total_size_ << std::endl;
+    //std::cout << "创建InputBuffer: run_id=" << run_id << ", total_size=" << total_size_ << std::endl;
 
     buffer_.reserve(buffer_size_);
     /* 加载第一块 */
@@ -66,8 +66,8 @@ load_next_block() {
     size_t remaining = static_cast<size_t>(total_size_ - consumed_);
     size_t size_to_read = std::min(buffer_size_, remaining);
     
-    std::cout << "加载数据块: run_id=" << run_id_ << ", consumed=" << consumed_ 
-              << ", remaining=" << remaining << ", size_to_read=" << size_to_read << std::endl;
+    //std::cout << "加载数据块: run_id=" << run_id_ << ", consumed=" << consumed_ 
+              //<< ", remaining=" << remaining << ", size_to_read=" << size_to_read << std::endl;
     
     if (size_to_read == 0) {
         buffer_end_ = 0;
@@ -83,7 +83,7 @@ load_next_block() {
         buffer_[i] = ptr[i];
     }
     
-    std::cout << "数据块加载完成: run_id=" << run_id_ << ", elements=" << size << std::endl;
+    //std::cout << "数据块加载完成: run_id=" << run_id_ << ", elements=" << size << std::endl;
 }
 
 
@@ -91,7 +91,7 @@ load_next_block() {
 OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
     : store_(store), buffer_size_(buffer_size) {
     buffer_.reserve(buffer_size_);
-    std::cout << "创建OutputBuffer: buffer_size=" << buffer_size << std::endl;
+    //std::cout << "创建OutputBuffer: buffer_size=" << buffer_size << std::endl;
 }
 
 void OutputBuffer::
@@ -105,7 +105,7 @@ add(int64_t value) {
 void OutputBuffer::
 flush() {
     if(!buffer_.empty()) {
-        std::cout << "刷新输出缓冲区: 写入元素数量=" << buffer_.size() << std::endl;
+        //std::cout << "刷新输出缓冲区: 写入元素数量=" << buffer_.size() << std::endl;
         store_.add_run(buffer_);
         buffer_.clear();
         buffer_.reserve(buffer_size_);

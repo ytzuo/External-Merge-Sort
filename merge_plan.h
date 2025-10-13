@@ -29,3 +29,8 @@ make_binary_merge_plan(RunStore &store, std::vector<uint32_t> runs);
 void excute_merge_plan(MergePlanNode *root,
                       RunStore &in_store,
                       RunStore &out_store);
+
+/* 执行操作计划并返回结果id */
+uint32_t execute_merge_plan_return_id(MergePlanNode *root,
+                                     RunStore &in_store,
+                                     RunStore &out_store);

@@ -45,7 +45,7 @@ make_binary_merge_plan(RunStore &store,
                        std::vector<uint32_t> runs) {
     if(runs.empty()) return nullptr;
 
-    std::cout << "构建二路归并计划树，输入runs: ";
+    //std::cout << "构建二路归并计划树，输入runs: ";
     for (auto id : runs) {
         std::cout << id << " ";
     }
@@ -80,10 +80,9 @@ make_binary_merge_plan(RunStore &store,
         parent->right = std::move(r);
         parent->run_length =
             parent->left->run_length + parent->right->run_length;
-        std::cout << "创建内部节点: left_id=" << parent->left->id 
-                  << " (len=" << parent->left->run_length << ")"
-                  << ", right_id=" << parent->right->id 
-                  << " (len=" << parent->right->run_length << ")"
+        // 修改输出信息，使用更清晰的表达方式
+        std::cout << "创建内部节点: left_len=" << parent->left->run_length
+                  << ", right_len=" << parent->right->run_length
                   << ", combined_len=" << parent->run_length << std::endl;
         pq.push(std::move(parent));
     }
@@ -98,20 +97,22 @@ void excute_merge_plan(MergePlanNode *root,
                        RunStore &out_store)
 {
     if(root == nullptr) {
-        std::cout << "归并计划树为空，无需执行" << std::endl;
+        //std::cout << "归并计划树为空，无需执行" << std::endl;
         return;
     }
     if(root->is_leaf) {
-        std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
+        //std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
         return;
     }
     
-    std::cout << "执行归并计划节点: left_id=" << root->left->id 
-              << ", right_id=" << root->right->id << std::endl;
+    //std::cout << "执行归并计划节点: left_id=" << root->left->id 
+              //<< ", right_id=" << root->right->id << std::endl;
     
+    // 递归执行子节点
     excute_merge_plan(root->left.get() , in_store, out_store);
     excute_merge_plan(root->right.get(), in_store, out_store);
 
+    // 执行当前节点的归并操作
     uint32_t id1 = root->left->id;
     uint32_t id2 = root->right->id;
     two_way_merge(in_store, id1, id2, out_store);
@@ -119,4 +120,38 @@ void excute_merge_plan(MergePlanNode *root,
     
     std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
               << ", result_id=" << root->id << std::endl;
+}
+
+// 执行归并计划并返回结果run的id，不修改节点
+uint32_t execute_merge_plan_return_id(MergePlanNode *root,
+                                      RunStore &in_store,
+                                      RunStore &out_store)
+{
+    if(root == nullptr) {
+        //std::cout << "归并计划树为空，无需执行" << std::endl;
+        return UINT32_MAX; // 无效id
+    }
+    if(root->is_leaf) {
+        //std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
+        return root->id;
+    }
+    
+    //std::cout << "执行归并计划节点: left_len=" << root->left->run_length 
+              //<< ", right_len=" << root->right->run_length << std::endl;
+    
+    // 递归执行子节点并获取结果id
+    uint32_t id1 = execute_merge_plan_return_id(root->left.get() , in_store, out_store);
+    uint32_t id2 = execute_merge_plan_return_id(root->right.get(), in_store, out_store);
+
+    // 执行当前节点的归并操作
+    // 所有归并操作都从out_store读取输入和输出到out_store
+    two_way_merge(out_store, id1, id2, out_store);
+    uint32_t result_id = out_store.run_count() - 1; // 新生成的run id
+    
+    auto [p, n] = out_store.get_run(result_id);
+    //std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
+              //<< ", result_id=" << result_id 
+              //<< ", combined_len=" << n << std::endl;
+              
+    return result_id;
 }

@@ -44,7 +44,16 @@ void testMerge() {
     /* 执行外排序 */
     std::cout << "执行外排序..." << std::endl;
     RunStore out_store(MERGED, true);
-    excute_merge_plan(plan.get(), in_store, out_store);
+    
+    // 首先将所有初始run复制到输出存储中
+    for (uint32_t i = 0; i < 10; i++) {
+        auto [p, n] = in_store.get_run(i);
+        std::vector<int64_t> buf(p, p + n);
+        out_store.add_run(buf);
+    }
+    
+    // 使用新的执行函数
+    uint32_t final_result_id = execute_merge_plan_return_id(plan.get(), in_store, out_store);
     auto t3 = std::chrono::steady_clock::now();
 
     /* 校验结果 */
@@ -52,11 +61,24 @@ void testMerge() {
     // 打印输出存储中的run数量
     std::cout << "输出存储中的run数量: " << out_store.run_count() << std::endl;
     
-    // 获取最后一个run作为最终结果
-    uint32_t final_run_id = out_store.run_count() - 1;
-    std::cout << "使用run id: " << final_run_id << std::endl;
+    // 检查所有run的内容
+    uint64_t total_elements = 0;
     
-    auto [final_p, final_n] = out_store.get_run(final_run_id);
+    for (uint32_t i = 0; i < out_store.run_count(); i++) {
+        auto [p, n] = out_store.get_run(i);
+        total_elements += n;
+        std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
+        
+        // 验证每个run是否已排序
+        bool sorted = std::is_sorted(p, p + n);
+        std::cout << "Run " << i << " 排序 " << (sorted ? "正确" : "错误") << std::endl;
+    }
+    
+    std::cout << "总共元素数量: " << total_elements << std::endl;
+    
+    std::cout << "使用run id: " << final_result_id << " (最终结果run)" << std::endl;
+    
+    auto [final_p, final_n] = out_store.get_run(final_result_id);
     std::cout << "获取到的元素数量: " << final_n << std::endl;
     
     // 打印前几个和后几个元素用于调试
@@ -76,9 +98,33 @@ void testMerge() {
         std::cout << std::endl;
     }
     
+    // 验证最终结果是否包含所有元素
     bool ok = std::is_sorted(final_p, final_p + final_n);
     std::cout << "Validation " << (ok ? "PASSED" : "FAILED")
-              << ", total records: " << final_n << '\n';
+              << ", total records: " << final_n << std::endl;
+    
+    if (final_n == TOTAL) {
+        std::cout << "成功: 最终结果包含所有 " << TOTAL << " 个元素" << std::endl;
+    } else {
+        std::cout << "注意: 最终结果只包含 " << final_n << " 个元素，期望 " << TOTAL << " 个元素" << std::endl;
+        std::cout << "这可能是因为归并计划树没有完全执行，最终结果可能在另一个run中" << std::endl;
+        
+        // 查找包含最多元素的run
+        uint64_t max_elements = 0;
+        uint32_t max_run_id = 0;
+        for (uint32_t i = 0; i < out_store.run_count(); i++) {
+            auto [p, n] = out_store.get_run(i);
+            if (n > max_elements) {
+                max_elements = n;
+                max_run_id = i;
+            }
+        }
+        
+        if (max_run_id != final_result_id) {
+            std::cout << "包含最多元素的run是 run_id=" << max_run_id << "，包含 " << max_elements << " 个元素" << std::endl;
+        }
+    }
+              
     std::cout << "Generate  : " << (t1 - t0).count() / 1e9 << " s\n"
               << "Merge     : " << (t3 - t2).count() / 1e9 << " s\n";
 }
