@@ -32,6 +32,9 @@ public:
     MappedRange map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const;
     uint64_t get_run_size(uint32_t run_id) const;       // 获取 run 中元素的数量
     uint32_t run_count() const { return header_.run_count; }
+    void begin_run(); // 开启一个新的 run
+    void append_to_run(const int64_t *keys, uint64_t n); // 向当前 run 追加数据
+    void end_run(); // 结束当前 run
 
 private:
     /* 文件头和元数据信息 */
@@ -54,4 +57,7 @@ private:
     uint64_t                  write_offset_; // 当前文件尾
 
     void flush_directory();      // 把 directory_ 写到文件尾部并更新 header
+    void reload_directory() const; // 重新加载目录信息确保最新
+    bool in_run_;           // 是否正在一个run中
+    uint32_t current_run_;  // 当前run的索引
 };

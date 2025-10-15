@@ -8,8 +8,9 @@
 #include <vector>
 
 void testMerge() {
-    const uint64_t TOTAL = 100000; // 十万个
-    const uint64_t RUN_SIZE = TOTAL / 10; // 一万个
+    const uint64_t TOTAL = 10000000;
+    const uint64_t RUN_NUM = 100;
+    const uint64_t RUN_SIZE = TOTAL / RUN_NUM;
     const std::string INITIAL = "initial.runs";
     const std::string MERGED   = "merged.runs";
 
@@ -34,7 +35,7 @@ void testMerge() {
 
     /* 构建归并计划树 */
     std::vector<uint32_t> runs;
-    for(uint32_t i = 0; i < 10; i++) {
+    for(uint32_t i = 0; i < RUN_NUM; i++) {
         runs.push_back(i);
     }
     std::cout << "构建归并计划树..." << std::endl;
@@ -46,7 +47,7 @@ void testMerge() {
     RunStore out_store(MERGED, true);
     
     // 首先将所有初始run复制到输出存储中
-    for (uint32_t i = 0; i < 10; i++) {
+    for (uint32_t i = 0; i < RUN_NUM; i++) {
         auto [p, n] = in_store.get_run(i);
         std::vector<int64_t> buf(p, p + n);
         out_store.add_run(buf);
@@ -72,6 +73,32 @@ void testMerge() {
         // 验证每个run是否已排序
         bool sorted = std::is_sorted(p, p + n);
         std::cout << "Run " << i << " 排序 " << (sorted ? "正确" : "错误") << std::endl;
+        
+        // 如果排序错误，显示更多详细信息帮助诊断
+        if (!sorted && n > 0) {
+            std::cout << "  Run " << i << " 前20个元素: ";
+            for (uint64_t j = 0; j < std::min(n, uint64_t(20)); j++) {
+                std::cout << p[j] << " ";
+            }
+            std::cout << std::endl;
+            
+            std::cout << "  Run " << i << " 后20个元素: ";
+            if (n > 20) {
+                for (uint64_t j = n - std::min(n, uint64_t(20)); j < n; j++) {
+                    std::cout << p[j] << " ";
+                }
+            }
+            std::cout << std::endl;
+            
+            // 查找第一个未排序的位置
+            for (uint64_t j = 1; j < n; j++) {
+                if (p[j] < p[j-1]) {
+                    std::cout << "  Run " << i << " 在位置 " << j << " 处发现未排序元素: " 
+                              << p[j-1] << " > " << p[j] << std::endl;
+                    break;
+                }
+            }
+        }
     }
     
     std::cout << "总共元素数量: " << total_elements << std::endl;

@@ -7,7 +7,7 @@
 
 static constexpr size_t MEM_BUF = 1 << 20; // 8MB 内存缓冲
 
-static void two_way_merge(RunStore &store,
+static uint32_t two_way_merge(RunStore &store,
                           uint32_t id1, uint32_t id2,
                           RunStore &out_store) 
 {
@@ -36,8 +36,9 @@ static void two_way_merge(RunStore &store,
     while (buf2.has_next()) {
         out_buf.add(buf2.next());
     }
-    
+
     std::cout << "完成两路归并: 生成新的run_id=" << (out_store.run_count() - 1) << std::endl;
+    return out_store.run_count()-1;
 }
 
 std::unique_ptr<MergePlanNode>
@@ -105,8 +106,8 @@ void excute_merge_plan(MergePlanNode *root,
         return;
     }
     
-    //std::cout << "执行归并计划节点: left_id=" << root->left->id 
-              //<< ", right_id=" << root->right->id << std::endl;
+    std::cout << "执行归并计划节点: left_id=" << root->left->id 
+              << ", right_id=" << root->right->id << std::endl;
     
     // 递归执行子节点
     excute_merge_plan(root->left.get() , in_store, out_store);
@@ -132,26 +133,26 @@ uint32_t execute_merge_plan_return_id(MergePlanNode *root,
         return UINT32_MAX; // 无效id
     }
     if(root->is_leaf) {
-        //std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
+        std::cout << "叶子节点，id=" << root->id << "，无需归并" << std::endl;
         return root->id;
     }
     
-    //std::cout << "执行归并计划节点: left_len=" << root->left->run_length 
-              //<< ", right_len=" << root->right->run_length << std::endl;
+    std::cout << "执行归并计划节点: left_len=" << root->left->run_length 
+              << ", right_len=" << root->right->run_length << std::endl;
     
     // 递归执行子节点并获取结果id
     uint32_t id1 = execute_merge_plan_return_id(root->left.get() , in_store, out_store);
     uint32_t id2 = execute_merge_plan_return_id(root->right.get(), in_store, out_store);
 
     // 执行当前节点的归并操作
-    // 所有归并操作都从out_store读取输入和输出到out_store
-    two_way_merge(out_store, id1, id2, out_store);
-    uint32_t result_id = out_store.run_count() - 1; // 新生成的run id
+    // 所有归并操作都从out_store读取输入和输出到out_store的最后
+    uint32_t result_id = two_way_merge(out_store, id1, id2, out_store);
+    //out_store.run_count()-1; // 新生成的run id
     
-    auto [p, n] = out_store.get_run(result_id);
-    //std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
-              //<< ", result_id=" << result_id 
-              //<< ", combined_len=" << n << std::endl;
+    //auto [p, n] = out_store.get_run(result_id);
+    // std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
+    //           << ", result_id=" << result_id 
+    //           << ", combined_len=" << n << std::endl;
               
     return result_id;
 }

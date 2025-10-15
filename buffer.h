@@ -50,4 +50,5 @@ private:
     RunStore& store_;
     std::vector<int64_t> buffer_;
     size_t buffer_size_;
+    bool run_started_ = false;  // 标记是否已开始run
 };

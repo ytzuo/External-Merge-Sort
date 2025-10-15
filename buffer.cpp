@@ -96,19 +96,32 @@ OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
 
 void OutputBuffer::
 add(int64_t value) {
+    if(!run_started_) {
+        std::cout<<"begin_run..."<<std::endl;
+        store_.begin_run();
+        run_started_ = true;
+    }
+
     buffer_.push_back(value);
+
     if(buffer_.size() >= buffer_size_) {
-        flush();
+        store_.append_to_run(buffer_);
+        buffer_.clear();
+        buffer_.reserve(buffer_size_);
     }
 }
 
 void OutputBuffer::
 flush() {
     if(!buffer_.empty()) {
-        //std::cout << "刷新输出缓冲区: 写入元素数量=" << buffer_.size() << std::endl;
-        store_.add_run(buffer_);
+        store_.append_to_run(buffer_);
         buffer_.clear();
         buffer_.reserve(buffer_size_);
+    }
+    if(run_started_) {
+        std::cout<<"end_run..."<<std::endl;
+        store_.end_run();
+        run_started_ = false;
     }
 }
 
