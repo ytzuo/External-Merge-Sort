@@ -60,4 +60,8 @@ private:
     void reload_directory() const; // 重新加载目录信息确保最新
     bool in_run_;           // 是否正在一个run中
     uint32_t current_run_;  // 当前run的索引
+
+public:
+    // 调试用：获取指定 run 的元数据
+    void get_run_metadata(uint32_t id, uint64_t &offset, uint64_t &keys, uint64_t &bytes) const;
 };

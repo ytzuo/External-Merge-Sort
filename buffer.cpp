@@ -76,10 +76,12 @@ load_next_block() {
     }
 
     buffer_pos_  = 0;
-    auto[ptr, size] = store_.get_run_range(run_id_, consumed_, size_to_read);
-    buffer_end_ = size;
-    buffer_.resize(size);
-    for (size_t i = 0; i < size; ++i) {
+    // 使用拥有映射，确保数据在复制期间有效
+    MappedRange m = store_.map_run_range_owned(run_id_, consumed_, size_to_read);
+    const int64_t* ptr = reinterpret_cast<const int64_t*>(m.data);
+    buffer_end_ = m.bytes / sizeof(int64_t);
+    buffer_.resize(buffer_end_);
+    for (size_t i = 0; i < buffer_end_; ++i) {
         buffer_[i] = ptr[i];
     }
     

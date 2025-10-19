@@ -38,18 +38,31 @@ public:
                 m.bytes / sizeof(int64_t)};
     }
 
+    // 返回拥有缓冲区的映射, 调用方需持有返回的 MappedRange 对象以保持数据有效
+    MappedRange map_run_owned(const uint32_t id) {
+        return file_->map_run(id);
+    }
+
     /* 部分读取 run */
     std::pair<const int64_t*, uint64_t> get_run_range(const uint32_t id, uint64_t offset, uint64_t count) {
         //std::cout<<"get_run_range..."<<std::endl;
         MappedRange m = file_->map_run_range(id, offset, count);
-        //std::cout<<"finish get_run_range..."<<std::endl;
         return {reinterpret_cast<const int64_t*>(m.data),
                 (m.bytes / sizeof(int64_t))};
+    }
+
+    // 返回拥有缓冲区的部分映射
+    MappedRange map_run_range_owned(const uint32_t id, uint64_t offset, uint64_t count) {
+        return file_->map_run_range(id, offset, count);
     }
 
     /* 获取run中元素的数量 */
     uint64_t get_run_size(const uint32_t id) {
         return file_->get_run_size(id);
+    }
+
+    void get_run_metadata(const uint32_t id, uint64_t &offset, uint64_t &keys, uint64_t &bytes) {
+        file_->get_run_metadata(id, offset, keys, bytes);
     }
 
     uint32_t run_count() const {

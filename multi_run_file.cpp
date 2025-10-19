@@ -116,16 +116,50 @@ void MultiRunFile::append_to_run(const int64_t *keys, uint64_t n) {
     RunEntry& entry = directory_[current_run_];
     // 计算新数据的字节大小
     const uint64_t new_bytes = n * sizeof(int64_t);
-    const uint64_t total_bytes = entry.bytes + new_bytes;
+    const uint64_t old_bytes = entry.bytes;
+    const uint64_t total_bytes = old_bytes + new_bytes;
     const uint64_t total_keys = entry.keys + n;
+
+    // 计算按块对齐的占用，只有当该 run 在数据区末尾时才需扩大 write_offset_
+    auto align_up = [&](uint64_t b)->uint64_t {
+        return (b + header_.block_sz - 1) & ~(uint64_t(header_.block_sz) - 1);
+    };
+    const uint64_t old_aligned = align_up(old_bytes);
+    const uint64_t new_aligned = align_up(total_bytes);
+
     // 在当前run末尾追加数据
-    file_.seekp(entry.offset + entry.bytes);
+    file_.seekp(entry.offset + old_bytes);
     file_.write(reinterpret_cast<const char*>(keys), new_bytes);
+    chk(file_.good(), "write data in append_to_run");
+
+    // 如果这个 run 的存储区域紧贴文件尾（即可以扩展），则我们可能需要填充并调整 write_offset_
+    if (entry.offset + old_aligned == write_offset_) {
+        if (new_aligned > old_aligned) {
+            // 先写入必要的pad以清除可能残留的元数据
+            uint64_t pad_bytes = new_aligned - total_bytes;
+            if (pad_bytes > 0) {
+                std::vector<uint8_t> zero(pad_bytes, 0);
+                file_.write(reinterpret_cast<const char*>(zero.data()), zero.size());
+                chk(file_.good(), "pad zero in append_to_run");
+            }
+            write_offset_ += (new_aligned - old_aligned);
+        }
+    } else {
+        // 如果不是在文件尾，且new_aligned > old_aligned，说明我们覆盖或超出预分配区域，
+        // 这是不被允许的，抛出异常以提示逻辑错误。
+        if (new_aligned > old_aligned) {
+            std::ostringstream oss;
+            oss << "append_to_run would exceed allocated region for run " << current_run_
+                << " (offset=" << entry.offset << ", old_aligned=" << old_aligned
+                << ", new_aligned=" << new_aligned << ")";
+            throw std::runtime_error(oss.str());
+        }
+    }
+
     // 更新entry信息（仅在内存中，不写入文件）
     entry.bytes = total_bytes;
     entry.keys = total_keys;
     directory_[current_run_] = entry;
-    // 不写entry到文件，元数据统一在end_run/flush_directory时写入
 }
 
 void MultiRunFile::end_run() {
@@ -241,4 +275,16 @@ uint64_t MultiRunFile::get_run_size(uint32_t run_id) const {
         throw std::runtime_error(oss.str());
     }
     return directory_[run_id].keys;
+}
+
+void MultiRunFile::get_run_metadata(uint32_t id, uint64_t &offset, uint64_t &keys, uint64_t &bytes) const {
+    if (!(id < header_.run_count)) {
+        std::ostringstream oss;
+        oss << "run_id " << id << " out of range (max " << header_.run_count - 1 << ')';
+        throw std::runtime_error(oss.str());
+    }
+    const RunEntry &e = directory_[id];
+    offset = e.offset;
+    keys = e.keys;
+    bytes = e.bytes;
 }

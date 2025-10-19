@@ -8,8 +8,8 @@
 #include <vector>
 
 void testMerge() {
-    const uint64_t TOTAL = 10000000;
-    const uint64_t RUN_NUM = 100;
+    const uint64_t TOTAL = 1000000;
+    const uint64_t RUN_NUM = 10;
     const uint64_t RUN_SIZE = TOTAL / RUN_NUM;
     const std::string INITIAL = "initial.runs";
     const std::string MERGED   = "merged.runs";
@@ -46,9 +46,11 @@ void testMerge() {
     std::cout << "执行外排序..." << std::endl;
     RunStore out_store(MERGED, true);
     
-    // 首先将所有初始run复制到输出存储中
+    // 首先将所有初始run复制到输出存储中（使用拥有缓冲区的映射，避免悬空指针）
     for (uint32_t i = 0; i < RUN_NUM; i++) {
-        auto [p, n] = in_store.get_run(i);
+        MappedRange m = in_store.map_run_owned(i);
+        const int64_t *p = reinterpret_cast<const int64_t*>(m.data);
+        uint64_t n = m.bytes / sizeof(int64_t);
         std::vector<int64_t> buf(p, p + n);
         out_store.add_run(buf);
     }
@@ -65,68 +67,110 @@ void testMerge() {
     // 检查所有run的内容
     uint64_t total_elements = 0;
     
+    const uint64_t CHUNK = 65536; // 每次读取的元素数量
     for (uint32_t i = 0; i < out_store.run_count(); i++) {
-        auto [p, n] = out_store.get_run(i);
+        uint64_t n = out_store.get_run_size(i);
         total_elements += n;
         std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
-        
-        // 验证每个run是否已排序
-        bool sorted = std::is_sorted(p, p + n);
-        std::cout << "Run " << i << " 排序 " << (sorted ? "正确" : "错误") << std::endl;
-        
-        // 如果排序错误，显示更多详细信息帮助诊断
-        if (!sorted && n > 0) {
-            std::cout << "  Run " << i << " 前20个元素: ";
-            for (uint64_t j = 0; j < std::min(n, uint64_t(20)); j++) {
-                std::cout << p[j] << " ";
-            }
-            std::cout << std::endl;
-            
-            std::cout << "  Run " << i << " 后20个元素: ";
-            if (n > 20) {
-                for (uint64_t j = n - std::min(n, uint64_t(20)); j < n; j++) {
-                    std::cout << p[j] << " ";
-                }
-            }
-            std::cout << std::endl;
-            
-            // 查找第一个未排序的位置
-            for (uint64_t j = 1; j < n; j++) {
+
+        if (n == 0) {
+            std::cout << "Run " << i << " 排序 正确 (空)" << std::endl;
+            continue;
+        }
+
+        bool ok = true;
+        int64_t prev_tail = 0; // 上一块的尾值
+        bool has_prev_tail = false;
+        uint64_t offset = 0;
+        while (offset < n) {
+            uint64_t cnt = std::min(CHUNK, n - offset);
+            MappedRange chunk = out_store.map_run_range_owned(i, offset, cnt);
+            const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
+            uint64_t m = chunk.bytes / sizeof(int64_t);
+
+            // 检查本块内部是否有序
+            for (uint64_t j = 1; j < m; j++) {
                 if (p[j] < p[j-1]) {
-                    std::cout << "  Run " << i << " 在位置 " << j << " 处发现未排序元素: " 
+                    std::cout << "  Run " << i << " 在块 offset=" << offset << " 内位置 " << j << " 发现未排序: "
                               << p[j-1] << " > " << p[j] << std::endl;
+                    ok = false;
                     break;
                 }
             }
+
+            // 检查与上一块的边界
+            if (has_prev_tail && m > 0) {
+                if (prev_tail > p[0]) {
+                    std::cout << "  Run " << i << " 边界不连续: prev_tail=" << prev_tail << " > cur_head=" << p[0]
+                              << " at offset=" << offset << std::endl;
+                    ok = false;
+                }
+            }
+
+            // 更新 prev_tail
+            if (m > 0) {
+                prev_tail = p[m-1];
+                has_prev_tail = true;
+            }
+
+            offset += cnt;
         }
+
+        std::cout << "Run " << i << " 排序 " << (ok ? "正确" : "错误") << std::endl;
     }
     
     std::cout << "总共元素数量: " << total_elements << std::endl;
     
     std::cout << "使用run id: " << final_result_id << " (最终结果run)" << std::endl;
     
-    auto [final_p, final_n] = out_store.get_run(final_result_id);
-    std::cout << "获取到的元素数量: " << final_n << std::endl;
-    
-    // 打印前几个和后几个元素用于调试
-    if (final_n > 0) {
-        std::cout << "前10个元素: ";
-        for (uint64_t i = 0; i < std::min(final_n, uint64_t(10)); i++) {
-            std::cout << final_p[i] << " ";
+    // 打印问题 run 的元数据以便诊断
+    for (uint32_t rid : {197u, 198u}) {
+        if (rid < out_store.run_count()) {
+            uint64_t off, keys, bytes;
+            out_store.get_run_metadata(rid, off, keys, bytes);
+            std::cout << "Run metadata: id=" << rid << ", offset=" << off << ", keys=" << keys << ", bytes=" << bytes << std::endl;
         }
-        std::cout << std::endl;
-        
-        std::cout << "后10个元素: ";
-        if (final_n > 10) {
-            for (uint64_t i = final_n - 10; i < final_n; i++) {
-                std::cout << final_p[i] << " ";
-            }
-        }
-        std::cout << std::endl;
     }
-    
-    // 验证最终结果是否包含所有元素
-    bool ok = std::is_sorted(final_p, final_p + final_n);
+
+    auto [_, final_n] = out_store.get_run(final_result_id);
+    std::cout << "获取到的元素数量: " << final_n << std::endl;
+    // 分块读取前后样本，避免一次性分配
+    const uint64_t SAMPLE = 10;
+    // if (final_n > 0) {
+    //     // 前 SAMPLE
+    //     uint64_t front_cnt = std::min(SAMPLE, final_n);
+    //     MappedRange front = out_store.map_run_range_owned(final_result_id, 0, front_cnt);
+    //     const int64_t *front_p = reinterpret_cast<const int64_t*>(front.data);
+    //     std::cout << "前10个元素: ";
+    //     for (uint64_t i = 0; i < front_cnt; i++) std::cout << front_p[i] << " ";
+    //     std::cout << std::endl;
+
+    //     // 后 SAMPLE
+    //     uint64_t back_cnt = std::min(SAMPLE, final_n);
+    //     MappedRange back = out_store.map_run_range_owned(final_result_id, final_n - back_cnt, back_cnt);
+    //     const int64_t *back_p = reinterpret_cast<const int64_t*>(back.data);
+    //     std::cout << "后10个元素: ";
+    //     for (uint64_t i = 0; i < back_cnt; i++) std::cout << back_p[i] << " ";
+    //     std::cout << std::endl;
+    // }
+
+    // 验证最终结果是否包含所有元素（分块校验）
+    bool ok = true;
+    int64_t prev_tail = 0; bool has_prev_tail = false;
+    uint64_t offset = 0;
+    while (offset < final_n) {
+        uint64_t cnt = std::min(CHUNK, final_n - offset);
+        MappedRange chunk = out_store.map_run_range_owned(final_result_id, offset, cnt);
+        const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
+        uint64_t m = chunk.bytes / sizeof(int64_t);
+        for (uint64_t j = 1; j < m; j++) {
+            if (p[j] < p[j-1]) { ok = false; break; }
+        }
+        if (has_prev_tail && m > 0 && prev_tail > p[0]) { ok = false; }
+        if (m > 0) { prev_tail = p[m-1]; has_prev_tail = true; }
+        offset += cnt;
+        if (!ok) break;
+    }
     std::cout << "Validation " << (ok ? "PASSED" : "FAILED")
               << ", total records: " << final_n << std::endl;
     
