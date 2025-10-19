@@ -98,6 +98,7 @@ OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
 
 void OutputBuffer::
 add(int64_t value) {
+    // 还没有一个新的 run 就创建一个
     if(!run_started_) {
         std::cout<<"begin_run..."<<std::endl;
         store_.begin_run();
@@ -106,6 +107,7 @@ add(int64_t value) {
 
     buffer_.push_back(value);
 
+    // 缓冲区已满, 写入磁盘
     if(buffer_.size() >= buffer_size_) {
         store_.append_to_run(buffer_);
         buffer_.clear();
@@ -115,11 +117,13 @@ add(int64_t value) {
 
 void OutputBuffer::
 flush() {
+    // 写入磁盘
     if(!buffer_.empty()) {
         store_.append_to_run(buffer_);
         buffer_.clear();
         buffer_.reserve(buffer_size_);
     }
+    // 结束 run
     if(run_started_) {
         std::cout<<"end_run..."<<std::endl;
         store_.end_run();

@@ -1,5 +1,6 @@
 #pragma once
 #include "run_store.h"
+#include <atomic>
 #include <cstdint>
 #include <vector>
 #include <cstddef>
@@ -28,6 +29,8 @@ private:
     size_t buffer_end_;  // 缓冲区中有效数据的结束位置
     uint64_t total_size_; // run的总大小
     uint64_t consumed_;   // 已经消费的数据数量
+
+    std::atomic<bool> active{false};
     
     /* 从磁盘加载下一块数据到缓冲区 */
     void load_next_block();
@@ -51,4 +54,6 @@ private:
     std::vector<int64_t> buffer_;
     size_t buffer_size_;
     bool run_started_ = false;  // 标记是否已开始run
+
+    std::atomic<bool> active{false};
 };

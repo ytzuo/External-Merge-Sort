@@ -8,8 +8,8 @@
 #include <vector>
 
 void testMerge() {
-    const uint64_t TOTAL = 1000000;
-    const uint64_t RUN_NUM = 10;
+    const uint64_t TOTAL = 10000000;
+    const uint64_t RUN_NUM = 100;
     const uint64_t RUN_SIZE = TOTAL / RUN_NUM;
     const std::string INITIAL = "initial.runs";
     const std::string MERGED   = "merged.runs";

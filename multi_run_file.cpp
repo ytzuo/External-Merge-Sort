@@ -135,7 +135,7 @@ void MultiRunFile::append_to_run(const int64_t *keys, uint64_t n) {
     // 如果这个 run 的存储区域紧贴文件尾（即可以扩展），则我们可能需要填充并调整 write_offset_
     if (entry.offset + old_aligned == write_offset_) {
         if (new_aligned > old_aligned) {
-            // 先写入必要的pad以清除可能残留的元数据
+            // 先写入必要的 0 pad 以清除可能残留的元数据
             uint64_t pad_bytes = new_aligned - total_bytes;
             if (pad_bytes > 0) {
                 std::vector<uint8_t> zero(pad_bytes, 0);
@@ -145,8 +145,7 @@ void MultiRunFile::append_to_run(const int64_t *keys, uint64_t n) {
             write_offset_ += (new_aligned - old_aligned);
         }
     } else {
-        // 如果不是在文件尾，且new_aligned > old_aligned，说明我们覆盖或超出预分配区域，
-        // 这是不被允许的，抛出异常以提示逻辑错误。
+        // 如果不是在文件尾，且new_aligned > old_aligned，说明覆盖或超出预分配区域，抛出错误
         if (new_aligned > old_aligned) {
             std::ostringstream oss;
             oss << "append_to_run would exceed allocated region for run " << current_run_
@@ -229,26 +228,26 @@ MappedRange MultiRunFile::map_run_range(uint32_t run_id, uint64_t offset, uint64
     const RunEntry &e = directory_[run_id]; // 获取指定元数据
     
     // 检查边界
-    if (!(offset < e.keys)) {
+    if (offset >= e.keys) {
         std::ostringstream oss;
         oss << "offset " << offset << " out of range (max " << e.keys - 1 << ')';
         throw std::runtime_error(oss.str());
     }
     
-    if (!(offset + count <= e.keys)) {
+    if (offset + count > e.keys) {
         std::ostringstream oss;
         oss << "offset+count " << (offset + count) << " out of range (e.keys " << e.keys << ')';
         throw std::runtime_error(oss.str());
     }
     
-    // 特殊情况处理：如果count为0，直接返回空的范围
+    // 如果count为0，直接返回空的范围
     if (count == 0) {
         auto impl = new MappedRange::Impl;
         return { nullptr, 0, impl };
     }
     
     const uint64_t byte_offset = offset * sizeof(int64_t);
-    const uint64_t byte_count = count * sizeof(int64_t);
+    const uint64_t byte_count  = count  * sizeof(int64_t);
     
     /* 创建新的 Impl 来存储 run 的一部分 */
     auto impl = new MappedRange::Impl;
@@ -269,7 +268,7 @@ MappedRange MultiRunFile::map_run_range(uint32_t run_id, uint64_t offset, uint64
 }
 
 uint64_t MultiRunFile::get_run_size(uint32_t run_id) const {
-    if (!(run_id < header_.run_count)) {
+    if (run_id >= header_.run_count) {
         std::ostringstream oss;
         oss << "run_id " << run_id << " out of range (max " << header_.run_count - 1 << ')';
         throw std::runtime_error(oss.str());
@@ -278,7 +277,7 @@ uint64_t MultiRunFile::get_run_size(uint32_t run_id) const {
 }
 
 void MultiRunFile::get_run_metadata(uint32_t id, uint64_t &offset, uint64_t &keys, uint64_t &bytes) const {
-    if (!(id < header_.run_count)) {
+    if (id >= header_.run_count) {
         std::ostringstream oss;
         oss << "run_id " << id << " out of range (max " << header_.run_count - 1 << ')';
         throw std::runtime_error(oss.str());
