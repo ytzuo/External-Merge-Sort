@@ -11,7 +11,7 @@ static uint32_t two_way_merge(RunStore &store,
                           uint32_t id1, uint32_t id2,
                           RunStore &out_store) 
 {
-    std::cout << "开始两路归并: run_id1=" << id1 << ", run_id2=" << id2 << std::endl;
+    //std::cout << "开始两路归并: run_id1=" << id1 << ", run_id2=" << id2 << std::endl;
     
     InputBuffer buf1(store, id1);
     InputBuffer buf2(store, id2);
@@ -37,7 +37,7 @@ static uint32_t two_way_merge(RunStore &store,
         out_buf.add(buf2.next());
     }
 
-    std::cout << "完成两路归并: 生成新的run_id=" << (out_store.run_count() - 1) << std::endl;
+    //std::cout << "完成两路归并: 生成新的run_id=" << (out_store.run_count() - 1) << std::endl;
     return out_store.run_count()-1;
 }
 
@@ -59,7 +59,7 @@ make_binary_merge_plan(RunStore &store,
         auto node = std::make_unique<MergePlanNode>(true, store.path(), n);
         node->id = id;  // 设置节点的id
         trees.push_back(std::move(node));
-        std::cout << "创建叶子节点: id=" << id << ", length=" << n << std::endl;
+        //std::cout << "创建叶子节点: id=" << id << ", length=" << n << std::endl;
     }
 
     auto cmp = [](const auto& a, const auto& b){
@@ -82,9 +82,9 @@ make_binary_merge_plan(RunStore &store,
         parent->run_length =
             parent->left->run_length + parent->right->run_length;
         // 修改输出信息，使用更清晰的表达方式
-        std::cout << "创建内部节点: left_len=" << parent->left->run_length
-                  << ", right_len=" << parent->right->run_length
-                  << ", combined_len=" << parent->run_length << std::endl;
+        //std::cout << "创建内部节点: left_len=" << parent->left->run_length
+                  //<< ", right_len=" << parent->right->run_length
+                  //<< ", combined_len=" << parent->run_length << std::endl;
         pq.push(std::move(parent));
     }
     
@@ -137,8 +137,8 @@ uint32_t execute_merge_plan_return_id(MergePlanNode *root,
         return root->id;
     }
     
-    std::cout << "执行归并计划节点: left_id=" << root->left->id 
-              << ", right_id=" << root->right->id << std::endl;
+    //std::cout << "执行归并计划节点: left_id=" << root->left->id 
+              //<< ", right_id=" << root->right->id << std::endl;
     
     // 递归执行子节点并获取结果id
     uint32_t id1 = execute_merge_plan_return_id(root->left.get() , in_store, out_store);
@@ -150,8 +150,8 @@ uint32_t execute_merge_plan_return_id(MergePlanNode *root,
     //out_store.run_count()-1; // 新生成的run id
     
     //auto [p, n] = out_store.get_run(result_id);
-    std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
-              << ", result_id=" << result_id << std::endl;
+    //std::cout << "节点执行完成: left_id=" << id1 << ", right_id=" << id2 
+              //<< ", result_id=" << result_id << std::endl;
               
     return result_id;
 }

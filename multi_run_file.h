@@ -24,7 +24,7 @@ class MultiRunFile {
 public:
     // new_file=true 时创建空文件
     MultiRunFile(const std::string &path, bool new_file,
-                 uint32_t block_size = 1 << 22); // 4096
+                 uint32_t block_size = 65536); // 64KB
     ~MultiRunFile();
 
     void append_run(const int64_t *keys, uint64_t n);   // 追加一个 run

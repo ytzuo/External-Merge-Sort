@@ -9,7 +9,7 @@
 class RunStore {
 public:
     explicit RunStore(const std::string &path, bool new_file = false, 
-        uint32_t block_size = 1 << 22) // 等价于2^21
+        uint32_t block_size = 65536) // 64KB
         : file_(std::make_unique<MultiRunFile>(path, new_file, block_size)){}
     
     

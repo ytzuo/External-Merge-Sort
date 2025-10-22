@@ -30,18 +30,18 @@ inline bool genRun(std::string filename, std::string new_file, size_t block_size
     try{
         MergeSortFile file(filename);
         if (!file.open()) return false;
-        std::cout<<"成功打开初始文件"<<std::endl;
+        //std::cout<<"成功打开初始文件"<<std::endl;
 
         MergeSortFile runFile(new_file);
         if (!runFile.create(new_file, block_size, false)) return false;
         if (!runFile.open()) return false;
-        std::cout<<"成功创建新文件"<<std::endl;
+        //std::cout<<"成功创建新文件"<<std::endl;
 
         std::vector<int> temp;
         size_t startOffset = 0;
         bool hasData = false;
         // 只要返回值一直为true;
-        std::cout<<"开始读取初始文件"<<std::endl;
+        //std::cout<<"开始读取初始文件"<<std::endl;
         //runFile.writeHeader(block_size);
         while(file.readSegmentChunk(0, startOffset, block_size, temp)) {
             hasData = true;

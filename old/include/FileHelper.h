@@ -342,7 +342,7 @@ public:
         // 写入文件头
         Header h;
         h.type = TypeMap<T>::id;
-        std::cout<<"type: "<<std::to_string(type)<<std::endl;
+        //std::cout<<"type: "<<std::to_string(type)<<std::endl;
         h.user_size = h.type == 0x20 ? (sizeof(T)) : 0;
         h.run_count = byteswap64(run_count);          // 主机 → 小端
         h.magic = byteswap32(h.magic);
@@ -385,7 +385,7 @@ public:
         // 创建元数据
         Meta meta;
         meta.run_len = std::distance(first, last);
-        std::cout<<"distance: "<<meta.run_len<<std::endl;
+        //std::cout<<"distance: "<<meta.run_len<<std::endl;
         meta.crc32 = crc32(first, put_size);
         meta.run_offset = put_pos;
         

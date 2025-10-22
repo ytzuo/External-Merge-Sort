@@ -88,6 +88,43 @@ load_next_block() {
     //std::cout << "数据块加载完成: run_id=" << run_id_ << ", elements=" << size << std::endl;
 }
 
+// 设置 active 状态, 当明确知道要设置为什么状态时使用
+void InputBuffer::
+set_active(bool value) {
+    active.store(value);
+}
+
+// 获取 active 状态
+bool InputBuffer::
+is_active() const {
+    return active.load();
+}
+
+// 原子的反转 active 状态
+bool InputBuffer::
+toggle_active() {
+    return active.exchange(!active.load());
+}
+
+void InputBuffer::
+resetBuffer(uint32_t run_id) {
+    this->run_id_ = run_id; // 重新设置读取的 run_id
+    try {
+        total_size_ = this->store_.get_run_size(run_id);
+    } catch (...) {
+        total_size_ = 0;
+    }
+
+    buffer_pos_ = 0;
+    buffer_end_ = 0;
+    consumed_   = 0;
+    buffer_.reserve(buffer_size_);
+    /* 加载第一块 */
+    if(total_size_ > 0) {
+        load_next_block();
+    }
+}
+
 
 /* 实现 OutputBuffer */
 OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
@@ -100,7 +137,7 @@ void OutputBuffer::
 add(int64_t value) {
     // 还没有一个新的 run 就创建一个
     if(!run_started_) {
-        std::cout<<"begin_run..."<<std::endl;
+        //std::cout<<"begin_run..."<<std::endl;
         store_.begin_run();
         run_started_ = true;
     }
@@ -125,7 +162,7 @@ flush() {
     }
     // 结束 run
     if(run_started_) {
-        std::cout<<"end_run..."<<std::endl;
+        //std::cout<<"end_run..."<<std::endl;
         store_.end_run();
         run_started_ = false;
     }
@@ -133,4 +170,22 @@ flush() {
 
 OutputBuffer::~OutputBuffer() {
     flush();
+}
+
+// 设置 active 状态, 当明确知道要设置为什么状态时使用
+void OutputBuffer::
+set_active(bool value) {
+    active.store(value);
+}
+
+// 获取 active 状态
+bool OutputBuffer::
+is_active() const {
+    return active.load();
+}
+
+// 原子的反转 active 状态
+bool OutputBuffer::
+toggle_active() {
+    return active.exchange(!active.load());
 }

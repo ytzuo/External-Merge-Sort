@@ -8,8 +8,8 @@
 
     第一次读取将所有的都插入优先队列, 接下来的读取在优先队列出现空缺时插入一个进入队列
 */
-void reader(std::vector<InputBuffer> bfs);
+void reader(std::vector<InputBuffer> &bfs);
 
-void sorter(std::vector<InputBuffer> inputs, std::vector<OutputBuffer> outputs);
+void sorter(std::vector<InputBuffer> &inputs, std::vector<OutputBuffer> &outputs);
 
-void writer(std::vector<OutputBuffer> bfs);
+void writer(std::vector<OutputBuffer> &bfs);

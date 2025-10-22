@@ -18,6 +18,14 @@ public:
     
     /* 预读下一个元素但不移动指针 */
     int64_t peek();
+
+    /* active 标志位操作 */
+    void set_active(bool value);
+    bool is_active() const;
+    bool toggle_active();
+
+    /* 重置缓冲区 */
+    void resetBuffer(uint32_t run_id);
     
 private:
     RunStore& store_;
@@ -48,6 +56,11 @@ public:
     void flush();
     
     ~OutputBuffer();
+
+    /* active 标志位操作 */
+    void set_active(bool value);
+    bool is_active() const;
+    bool toggle_active();
     
 private:
     RunStore& store_;

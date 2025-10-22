@@ -9,7 +9,7 @@
 
 void testMerge() {
     const uint64_t TOTAL = 10000000;
-    const uint64_t RUN_NUM = 100;
+    const uint64_t RUN_NUM = 10;
     const uint64_t RUN_SIZE = TOTAL / RUN_NUM;
     const std::string INITIAL = "initial.runs";
     const std::string MERGED   = "merged.runs";
@@ -29,7 +29,7 @@ void testMerge() {
         std::sort(buf.begin(), buf.end());
         in_store.add_run(buf);
         left -= cur;
-        std::cout << "生成初始run: 当前大小=" << cur << ", 剩余=" << left << std::endl;
+        //std::cout << "生成初始run: 当前大小=" << cur << ", 剩余=" << left << std::endl;
     }
     auto t1 = std::chrono::steady_clock::now();
 
@@ -71,10 +71,10 @@ void testMerge() {
     for (uint32_t i = 0; i < out_store.run_count(); i++) {
         uint64_t n = out_store.get_run_size(i);
         total_elements += n;
-        std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
+        //std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
 
         if (n == 0) {
-            std::cout << "Run " << i << " 排序 正确 (空)" << std::endl;
+            //std::cout << "Run " << i << " 排序 正确 (空)" << std::endl;
             continue;
         }
 
@@ -116,7 +116,7 @@ void testMerge() {
             offset += cnt;
         }
 
-        std::cout << "Run " << i << " 排序 " << (ok ? "正确" : "错误") << std::endl;
+        //std::cout << "Run " << i << " 排序 " << (ok ? "正确" : "错误") << std::endl;
     }
     
     std::cout << "总共元素数量: " << total_elements << std::endl;
