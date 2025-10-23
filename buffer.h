@@ -27,6 +27,9 @@ public:
     /* 重置缓冲区 */
     void resetBuffer(uint32_t run_id);
     
+    /* 从磁盘加载下一块数据到缓冲区 */
+    void load_next_block();
+    
 private:
     RunStore& store_;
     uint32_t run_id_;
@@ -39,9 +42,6 @@ private:
     uint64_t consumed_;   // 已经消费的数据数量
 
     std::atomic<bool> active{false};
-    
-    /* 从磁盘加载下一块数据到缓冲区 */
-    void load_next_block();
 };
 
 /* 输出缓冲区类，用于向RunStore写入数据 */
