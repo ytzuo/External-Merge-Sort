@@ -142,7 +142,7 @@ void writer(std::vector<OutputBuffer> &bfs) {
         }
 
         output.set_active(true);
-        output.flush();  // 这个地方也不能直接调用flush, 可能需要只写入, 不统计段长度
+        //output.flush();  // 这个地方也不能直接调用flush, 可能需要只写入, 不统计段长度
         output.set_active(false);
     }
 }

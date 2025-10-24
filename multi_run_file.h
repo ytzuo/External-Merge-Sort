@@ -34,6 +34,7 @@ public:
     uint32_t run_count() const { return header_.run_count; }
     void begin_run(); // 开启一个新的 run
     void append_to_run(const int64_t *keys, uint64_t n); // 向当前 run 追加数据
+    void append(const int64_t *keys, uint64_t n); // 单纯追加数据
     void end_run(); // 结束当前 run
 
 private:

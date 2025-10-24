@@ -287,3 +287,7 @@ void MultiRunFile::get_run_metadata(uint32_t id, uint64_t &offset, uint64_t &key
     keys = e.keys;
     bytes = e.bytes;
 }
+
+void MultiRunFile::append(const int64_t* keys, uint64_t n) {
+    // 还要考虑这里是直接附加到末尾, 还是要获取读写位置再计算对齐
+}

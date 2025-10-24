@@ -72,6 +72,10 @@ public:
     std::string path() const {
         return path_;
     }
+
+    void append_direct(std::vector<int64_t> keys) {
+        file_->append(keys.data(), keys.size());
+    }
 private:
     std::unique_ptr<MultiRunFile> file_;
     std::string path_;
