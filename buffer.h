@@ -29,6 +29,8 @@ public:
     
     /* 从磁盘加载下一块数据到缓冲区 */
     void load_next_block();
+
+    void load_chunk(uint32_t run_id, uint64_t offset, uint64_t count);
     
 private:
     RunStore& store_;
@@ -54,7 +56,8 @@ public:
     
     /* 刷新缓冲区，将剩余数据写入存储 */
     void flush();
-    
+    void flush_direct();
+    bool empty();
     ~OutputBuffer();
 
     /* active 标志位操作 */

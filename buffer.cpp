@@ -125,6 +125,34 @@ resetBuffer(uint32_t run_id) {
     }
 }
 
+void InputBuffer::load_chunk(uint32_t run_id, uint64_t offset, uint64_t count) {
+    // 重新设置当前buffer关联的run和相关参数
+    this->run_id_ = run_id;
+    
+    // 使用拥有映射，确保数据在复制期间有效
+    MappedRange m = store_.map_run_range_owned(run_id, offset, count);
+    const int64_t* ptr = reinterpret_cast<const int64_t*>(m.data);
+    
+    // 调整buffer大小并复制数据
+    buffer_.resize(count);
+    for (size_t i = 0; i < count; ++i) {
+        buffer_[i] = ptr[i];
+    }
+    
+    // 重置缓冲区状态
+    buffer_pos_ = 0;
+    buffer_end_ = count;
+    total_size_ = count;
+    consumed_ = 0;
+}
+
+
+
+
+
+
+
+
 
 /* 实现 OutputBuffer */
 OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
@@ -166,6 +194,20 @@ flush() {
         store_.end_run();
         run_started_ = false;
     }
+}
+
+void OutputBuffer::
+flush_direct() {
+    if(!buffer_.empty()) {
+        store_.append_direct(buffer_);
+        buffer_.clear();
+        buffer_.reserve(buffer_size_);
+    }
+}
+
+bool OutputBuffer::
+empty() {
+    return buffer_.empty();
 }
 
 OutputBuffer::~OutputBuffer() {

@@ -2,6 +2,7 @@
 #include <thread>
 #include <vector>
 #include "buffer.h"
+#include "run_store.h"
 #include <queue>
 #include <iostream>
 /*
@@ -9,20 +10,44 @@
     当输入/输出线程准备操作的缓冲区的 active 为true时, yield() 让出cpu
     完成写入/输出后, 再改为true(可参与排序)
 */
-void reader(std::vector<InputBuffer> &bfs, bool& done_reading) {
+
+struct Task {
+    uint32_t run_id;
+    uint64_t offset;
+    uint64_t count;
+};
+
+std::vector<Task> initTasks(RunStore &store) {
+    const size_t CHUNK = 65536; // 元素数
+    std::vector<Task> tasks;
+    for (uint32_t r = 0; r < store.run_count(); ++r) {
+        uint64_t sz = store.get_run_size(r);
+        for (uint64_t off = 0; off < sz; off += CHUNK) {
+            uint64_t cnt = std::min<uint64_t>(CHUNK, sz - off);
+            tasks.push_back({r, off, cnt});
+        }
+    }
+    return tasks;
+}
+
+void reader(std::vector<InputBuffer> &bfs, std::atomic<bool>& done_reading, std::vector<Task>& tasks, std::atomic<size_t>& next_task) {
     bool use_buffer_1 = true;
-    
+
     // TODO: 实现读取逻辑，交替填充两个缓冲区
     while(true) { // 这里还要换成真正的结束条件(读取已经到达文件末尾)
+        size_t idx = next_task.fetch_add(1);
+        if (idx >= tasks.size()) break; // 任务全部完成
+        auto t = tasks[idx];
+
         InputBuffer& input = use_buffer_1 ? bfs[0] : bfs[1];
         while(input.is_active()) {
             std::this_thread::yield();
         }
         input.set_active(true);
-        input.load_next_block(); // 加载下一块, 这里的逻辑可能还需要修改
+        input.load_chunk(t.run_id, t.offset, t.count); 
         input.set_active(false);
     }
-    done_reading = true;
+    done_reading.exchange(true);
 }
 
 /*
@@ -33,7 +58,8 @@ void reader(std::vector<InputBuffer> &bfs, bool& done_reading) {
 
 void sorter(std::vector<InputBuffer>& inputs,
             std::vector<OutputBuffer>& outputs,
-            const std::atomic<bool>& done_reading) {
+            const std::atomic<bool>& done_reading,
+            std::atomic<bool>& done_sorting) {
 
     std::priority_queue<int64_t, std::vector<int64_t>, std::greater<int64_t>> min_heap;
     std::vector<int64_t> frozen; // 冻结区, 用于存储小于上一个输出元素的输入元素
@@ -68,6 +94,7 @@ void sorter(std::vector<InputBuffer>& inputs,
                 continue;
             } else if (done_reading.load() && frozen.empty()) {
                 // 所有输入已完成，且无冻结数据 -> 结束
+                done_sorting.exchange(true);
                 break;
             } else { // 等待缓冲区读入数据
                 std::this_thread::yield();
@@ -131,10 +158,11 @@ void sorter(std::vector<InputBuffer>& inputs,
 }
 
 
-void writer(std::vector<OutputBuffer> &bfs) {
+void writer(std::vector<OutputBuffer> &bfs, 
+            const std::atomic<bool>& done_sorting) {
     bool use_buffer_1 = true;
 
-    while(true) { // 这里要修改为真实结束逻辑
+    while(!bfs[0].empty() && !bfs[1].empty() && !done_sorting.load()) { // 这里要修改为真实结束逻辑
         OutputBuffer& output = use_buffer_1? bfs[0] : bfs[1];
         
         while(output.is_active()) {
@@ -143,6 +171,7 @@ void writer(std::vector<OutputBuffer> &bfs) {
 
         output.set_active(true);
         //output.flush();  // 这个地方也不能直接调用flush, 可能需要只写入, 不统计段长度
+        output.flush_direct(); // 现在是直接写入
         output.set_active(false);
     }
 }
