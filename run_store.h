@@ -76,6 +76,15 @@ public:
     void append_direct(std::vector<int64_t> keys) {
         file_->append(keys.data(), keys.size());
     }
+
+    uint32_t create_entries() {        
+        return file_->create_entries();
+    }
+
+    // MultiRunFile* getFile() {
+    //     return file_.get(); // get() 返回内部指针
+    // }
+
 private:
     std::unique_ptr<MultiRunFile> file_;
     std::string path_;

@@ -1,11 +1,13 @@
 #include "multi_run_file.h"
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <cstring>
 #include <ios>
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
+#include <vector>
 
 /* 异常处理辅助函数 */
 static void chk(bool cond, const std::string& msg) {
@@ -293,4 +295,74 @@ void MultiRunFile::append(const int64_t* keys, uint64_t n) {
     file_.seekp(0, std::ios::end);
     file_.write(reinterpret_cast<const char*>(keys), n);
     chk(file_.good(), "write data in append_to_run");
+}
+
+uint32_t MultiRunFile::create_entries() {
+    // 清空现有的目录项
+    directory_.clear();
+    // 保存当前文件位置
+    std::streampos original_pos = file_.tellg();
+    // 跳过文件头开始读取数据
+    file_.seekg(sizeof(header_));
+    // 用于存储扫描到的数据
+    std::vector<int64_t> buffer;
+    uint64_t current_offset = sizeof(header_);    
+    // 读取整个文件数据，按块读取以避免内存问题
+    const size_t BUFFER_SIZE = 1024 * 1024; // 1MB缓冲区
+    std::vector<int64_t> read_buffer(BUFFER_SIZE);
+    bool first_element = true;
+    int64_t last_element = 0;
+    uint64_t run_start_offset = sizeof(header_);
+    uint64_t run_element_count = 0;
+    
+    while (file_.good()) {
+        // 读取一批数据
+        file_.read(reinterpret_cast<char*>(read_buffer.data()), BUFFER_SIZE * sizeof(int64_t));
+        std::streamsize elements_read = file_.gcount() / sizeof(int64_t);
+        
+        if (elements_read == 0) {
+            break; // 文件读取完毕
+        }
+        
+        for (std::streamsize i = 0; i < elements_read; ++i) {
+            int64_t current_element = read_buffer[i];
+            
+            // 检查是否是新run的开始（第一个元素或者当前元素小于上一个元素）
+            if (first_element || current_element < last_element) {
+                // 如果这不是第一个元素，我们需要结束上一个run
+                if (!first_element && run_element_count > 0) {
+                    // 创建上一个run的entry
+                    RunEntry entry;
+                    entry.offset = run_start_offset;
+                    entry.keys = run_element_count;
+                    entry.bytes = run_element_count * sizeof(int64_t);
+                    directory_.push_back(entry);
+                }
+                
+                // 开始新的run
+                run_start_offset = current_offset;
+                run_element_count = 1;
+            } else {
+                // 继续当前run
+                run_element_count++;
+            }
+            last_element = current_element;
+            current_offset += sizeof(int64_t);
+            first_element = false;
+        }
+    }
+    
+    // 添加最后一个run
+    if (run_element_count > 0) {
+        RunEntry entry;
+        entry.offset = run_start_offset;
+        entry.keys = run_element_count;
+        entry.bytes = run_element_count * sizeof(int64_t);
+        directory_.push_back(entry);
+    }    
+    // 更新header中的run数目
+    header_.run_count = directory_.size();    
+    // 恢复原始文件位置
+    file_.seekg(original_pos);
+    return directory_.size();
 }

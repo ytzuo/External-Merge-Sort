@@ -27,17 +27,6 @@ public:
                  uint32_t block_size = 65536); // 64KB
     ~MultiRunFile();
 
-    void append_run(const int64_t *keys, uint64_t n);   // 追加一个 run
-    MappedRange map_run(uint32_t run_id) const;         // 只读映射第 run_id 个 run
-    MappedRange map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const;
-    uint64_t get_run_size(uint32_t run_id) const;       // 获取 run 中元素的数量
-    uint32_t run_count() const { return header_.run_count; }
-    void begin_run(); // 开启一个新的 run
-    void append_to_run(const int64_t *keys, uint64_t n); // 向当前 run 追加数据
-    void append(const int64_t *keys, uint64_t n); // 单纯追加数据
-    void end_run(); // 结束当前 run
-
-private:
     /* 文件头和元数据信息 */
     struct Header {             
         uint32_t block_sz;           // 块大小
@@ -52,6 +41,17 @@ private:
         uint64_t bytes;          // 长度
     };
 
+    void append_run(const int64_t *keys, uint64_t n);   // 追加一个 run
+    MappedRange map_run(uint32_t run_id) const;         // 只读映射第 run_id 个 run
+    MappedRange map_run_range(uint32_t run_id, uint64_t offset, uint64_t count) const;
+    uint64_t get_run_size(uint32_t run_id) const;       // 获取 run 中元素的数量
+    uint32_t run_count() const { return header_.run_count; }
+    void begin_run(); // 开启一个新的 run
+    void append_to_run(const int64_t *keys, uint64_t n); // 向当前 run 追加数据
+    void append(const int64_t *keys, uint64_t n); // 单纯追加数据
+    void end_run(); // 结束当前 run
+    uint32_t create_entries();
+private:
     std::string               path_;
     mutable std::fstream      file_;    // 读写同一句柄，mutable 为了 lazy map
     std::vector<RunEntry>     directory_;

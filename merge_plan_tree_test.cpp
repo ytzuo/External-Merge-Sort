@@ -55,7 +55,7 @@ void testMerge() {
         out_store.add_run(buf);
     }
     
-    // 使用新的执行函数
+    // 使用执行函数
     uint32_t final_result_id = execute_merge_plan_return_id(plan.get(), in_store, out_store);
     auto t3 = std::chrono::steady_clock::now();
 
@@ -200,7 +200,7 @@ void testMerge() {
               << "Merge     : " << (t3 - t2).count() / 1e9 << " s\n";
 }
 
-int main() {
-    testMerge();
-    return 0;
-}
+// int main() {
+//     testMerge();
+//     return 0;
+// }
