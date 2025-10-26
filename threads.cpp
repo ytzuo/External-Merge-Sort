@@ -1,4 +1,6 @@
 #include <climits>
+#include <cstdint>
+#include <exception>
 #include <thread>
 #include <vector>
 #include "buffer.h"
@@ -32,13 +34,13 @@ void reader(std::vector<InputBuffer> &bfs,
             bool use_buffer_1 = true;
 
     // TODO: 实现读取逻辑，交替填充两个缓冲区
-    while(true) { // 这里还要换成真正的结束条件(读取已经到达文件末尾)
+    while(true) { 
         size_t idx = next_task.fetch_add(1);
         if (idx >= tasks.size()) break; // 任务全部完成
         auto t = tasks[idx];
 
         InputBuffer& input = use_buffer_1 ? bfs[0] : bfs[1];
-        while(input.is_active()) {
+        while(input.is_active() || input.has_next()) {
             std::this_thread::yield();
         }
         input.set_active(true);
@@ -61,6 +63,7 @@ void sorter(std::vector<InputBuffer>& inputs,
 
     std::priority_queue<int64_t, std::vector<int64_t>, std::greater<int64_t>> min_heap;
     std::vector<int64_t> frozen; // 冻结区, 用于存储小于上一个输出元素的输入元素
+    bool frozen_input = false;
 
     int cur_out = 0;
     size_t cur_out_count = 0;
@@ -112,7 +115,10 @@ void sorter(std::vector<InputBuffer>& inputs,
         // 输出堆顶，处理新元素 
         if (!min_heap.empty()) {
             int64_t last_output = LLONG_MIN;
-
+            while(outputs[cur_out].is_active()) {
+                std::this_thread::yield();
+            }
+            outputs[cur_out].set_active(true);
             while (!min_heap.empty()) {
                 int64_t min_val = min_heap.top();
                 min_heap.pop();
@@ -121,27 +127,43 @@ void sorter(std::vector<InputBuffer>& inputs,
                 last_output = min_val;
 
                 cur_out_count++;
-                if (cur_out_count >= OUT_SWITCH_THRESHOLD) {
-                    outputs[cur_out].set_active(true); // 通知 writer
+                // 当即将启用frozen作为输入时，结束本段，因为接下来插入的数字较小
+                if (frozen_input || cur_out_count >= OUT_SWITCH_THRESHOLD) {
+                    outputs[cur_out].set_active(false); // 通知 writer
                     int next = 1 - cur_out;
-                    while (outputs[next].is_active()) { // 下一个使用的输出缓冲区还在写入
-                        std::this_thread::yield();
-                    }
+                    // while (outputs[next].is_active()) { // 下一个使用的输出缓冲区还在写入
+                    //     std::this_thread::yield();
+                    // }
                     cur_out = next;
                     cur_out_count = 0;
                 }
 
+                while(!frozen.empty()) { // 将冻结区的加入最小堆
+                    int64_t f = *frozen.end();
+                    frozen.pop_back();
+                    min_heap.push(f);
+                }
+                if(frozen.empty())
+                    frozen_input = false;
                 // 尝试从输入获取新元素（需要再次检查输入）
                 InputBuffer* src = use_input_1 ? &inputs[0] : &inputs[1];
-                if (!src->is_active() && src->has_next()) {
+                while(src->is_active())
+                    std::this_thread::yield();
+                src->set_active(true);
+                if (src->has_next()) {
                     int64_t in_val = src->next();
                     if (in_val >= last_output) { 
                         min_heap.push(in_val);
                     } else { // 小于上一个输出的元素, 加入冻结区 
-                        // 可能还需要加上这样的逻辑: 当冻结区域过大, 直接把缓冲区一口气输出完
                         frozen.push_back(in_val);
+                        if(frozen.size() > OUT_SWITCH_THRESHOLD) {
+                            frozen_input = true;
+                            //outputs[cur_out].set_active(false); // 通知writer
+                        }
+                        // 可能还需要加上这样的逻辑: 当冻结区域过大, 作为下一次的输入
                     }
                 }
+                src->set_active(false);
                 // 注意：这里简化了输入获取逻辑，实际可能需要更复杂的轮询
             }
         } else {
