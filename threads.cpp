@@ -31,21 +31,26 @@ void reader(std::vector<InputBuffer> &bfs,
             std::atomic<bool>& done_reading, 
             std::vector<Task>& tasks, 
             std::atomic<size_t>& next_task) {
-            bool use_buffer_1 = true;
 
-    // TODO: 实现读取逻辑，交替填充两个缓冲区
     while(true) { 
         size_t idx = next_task.fetch_add(1);
-        if (idx >= tasks.size()) break; // 任务全部完成
+        if (idx >= tasks.size()) break;
         auto t = tasks[idx];
 
-        InputBuffer& input = use_buffer_1 ? bfs[0] : bfs[1];
-        while(input.is_active() || input.has_next()) {
-            std::this_thread::yield();
+        // 找到一个空闲的缓冲区
+        InputBuffer* input = nullptr;
+        while (input == nullptr) {
+            if (!bfs[0].is_active()) {
+                input = &bfs[0];
+            } else if (!bfs[1].is_active()) {
+                input = &bfs[1];
+            } else {
+                std::this_thread::yield();
+            }
         }
-        input.set_active(true);
-        input.load_chunk(t.run_id, t.offset, t.count); 
-        input.set_active(false);
+        
+        input->load_chunk(t.run_id, t.offset, t.count); 
+        input->set_active(true);
     }
     done_reading.exchange(true);
 }
@@ -62,36 +67,30 @@ void sorter(std::vector<InputBuffer>& inputs,
             std::atomic<bool>& done_sorting) {
 
     std::priority_queue<int64_t, std::vector<int64_t>, std::greater<int64_t>> min_heap;
-    std::vector<int64_t> frozen; // 冻结区, 用于存储小于上一个输出元素的输入元素
+    std::vector<int64_t> frozen;
     bool frozen_input = false;
 
     int cur_out = 0;
     size_t cur_out_count = 0;
-    const size_t OUT_SWITCH_THRESHOLD = 1 << 16; // 输出缓冲区切换阈值 这里不设置为满, 
-                                                 // 因为原本的flush会生成新的run, 需要写一个新的写入逻辑
-
-    bool use_input_1 = true; // 交替使用输入缓冲区
+    const size_t OUT_SWITCH_THRESHOLD = 1 << 16;
 
     while (true) {
         // 选择并填充输入缓冲区到堆中（如果堆为空）
         if (min_heap.empty()) {
             InputBuffer* current_input = nullptr;
 
-            if (use_input_1 && !inputs[0].is_active() && inputs[0].has_next()) { 
-                // 缓冲区1还有数据
-                inputs[0].set_active(true);
+            // 找到一个有数据的缓冲区
+            if (inputs[0].is_active()) { 
                 current_input = &inputs[0];
-            } else if (!use_input_1 && !inputs[1].is_active() && inputs[1].has_next()) {
-                // 缓冲区2还有数据
-                inputs[1].set_active(true);
+            } else if (inputs[1].is_active()) {
                 current_input = &inputs[1];
             } else if (!frozen.empty()) {
                 // 输入缓冲区都空了，但冻结区有数据 → 重建堆
+                std::cout << "Sorter: rebuilding heap from frozen, size=" << frozen.size() << std::endl;
                 for (int64_t val : frozen) {
                     min_heap.push(val);
                 }
                 frozen.clear();
-                use_input_1 = !use_input_1; // 切换输入源
                 continue;
             } else if (done_reading.load() && frozen.empty()) {
                 // 所有输入已完成，且无冻结数据 -> 结束
@@ -109,16 +108,16 @@ void sorter(std::vector<InputBuffer>& inputs,
 
             // 标记输入缓冲区为空闲（可被 reader 重新填充）
             current_input->set_active(false);
-            use_input_1 = !use_input_1;
         }
 
         // 输出堆顶，处理新元素 
         if (!min_heap.empty()) {
             int64_t last_output = LLONG_MIN;
+            // 等待当前输出缓冲区可用
             while(outputs[cur_out].is_active()) {
                 std::this_thread::yield();
             }
-            outputs[cur_out].set_active(true);
+            
             while (!min_heap.empty()) {
                 int64_t min_val = min_heap.top();
                 min_heap.pop();
@@ -129,28 +128,31 @@ void sorter(std::vector<InputBuffer>& inputs,
                 cur_out_count++;
                 // 当即将启用frozen作为输入时，结束本段，因为接下来插入的数字较小
                 if (frozen_input || cur_out_count >= OUT_SWITCH_THRESHOLD) {
-                    outputs[cur_out].set_active(false); // 通知 writer
+                    // 数据写完，通知 writer
+                    outputs[cur_out].set_active(true);
                     int next = 1 - cur_out;
-                    // while (outputs[next].is_active()) { // 下一个使用的输出缓冲区还在写入
-                    //     std::this_thread::yield();
-                    // }
                     cur_out = next;
                     cur_out_count = 0;
+                    break;  // 跳出内层循环，切换到下一个缓冲区
                 }
 
                 while(!frozen.empty()) { // 将冻结区的加入最小堆
-                    int64_t f = *frozen.end();
+                    int64_t f = frozen.back();
                     frozen.pop_back();
                     min_heap.push(f);
                 }
                 if(frozen.empty())
                     frozen_input = false;
-                // 尝试从输入获取新元素（需要再次检查输入）
-                InputBuffer* src = use_input_1 ? &inputs[0] : &inputs[1];
-                while(src->is_active())
-                    std::this_thread::yield();
-                src->set_active(true);
-                if (src->has_next()) {
+                // 尝试从输入获取新元素
+                // 检查两个缓冲区，找到一个有数据的
+                InputBuffer* src = nullptr;
+                if (inputs[0].is_active() && inputs[0].has_next()) {
+                    src = &inputs[0];
+                } else if (inputs[1].is_active() && inputs[1].has_next()) {
+                    src = &inputs[1];
+                }
+                
+                if (src != nullptr) {
                     int64_t in_val = src->next();
                     if (in_val >= last_output) { 
                         min_heap.push(in_val);
@@ -158,13 +160,9 @@ void sorter(std::vector<InputBuffer>& inputs,
                         frozen.push_back(in_val);
                         if(frozen.size() > OUT_SWITCH_THRESHOLD) {
                             frozen_input = true;
-                            //outputs[cur_out].set_active(false); // 通知writer
                         }
-                        // 可能还需要加上这样的逻辑: 当冻结区域过大, 作为下一次的输入
                     }
                 }
-                src->set_active(false);
-                // 注意：这里简化了输入获取逻辑，实际可能需要更复杂的轮询
             }
         } else {
             std::this_thread::yield();
@@ -182,16 +180,27 @@ void writer(std::vector<OutputBuffer> &bfs,
             const std::atomic<bool>& done_sorting) {
     bool use_buffer_1 = true;
 
-    while(!bfs[0].empty() && !bfs[1].empty() && !done_sorting.load()) { // 这里要修改为真实结束逻辑
+    while(!done_sorting.load()) {
         OutputBuffer& output = use_buffer_1? bfs[0] : bfs[1];
         
-        while(output.is_active()) {
+        // 等待缓冲区被标记为需要写入
+        while(!output.is_active() && !done_sorting.load()) {
             std::this_thread::yield();
         }
+        
+        if(done_sorting.load()) break;
 
-        output.set_active(true);
-        //output.flush();  // 这个地方也不能直接调用flush, 可能需要只写入, 不统计段长度
-        output.flush_direct(); // 现在是直接写入
+        output.flush_direct();
         output.set_active(false);
+        
+        use_buffer_1 = !use_buffer_1;
+    }
+    
+    // 排序完成后，检查是否还有剩余数据需要 flush
+    for (auto& buf : bfs) {
+        if (buf.is_active() || !buf.empty()) {
+            buf.flush_direct();
+            buf.set_active(false);
+        }
     }
 }

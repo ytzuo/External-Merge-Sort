@@ -10,6 +10,14 @@ class InputBuffer {
 public:
     InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size = 1 << 20);
     
+    // 删除拷贝构造函数和拷贝赋值运算符
+    InputBuffer(const InputBuffer&) = delete;
+    InputBuffer& operator=(const InputBuffer&) = delete;
+    
+    // 添加移动构造函数和移动赋值运算符
+    InputBuffer(InputBuffer&& other) noexcept;
+    InputBuffer& operator=(InputBuffer&& other) noexcept;
+    
     /* 检查是否还有数据可读 */
     bool has_next() const;
     
@@ -50,6 +58,14 @@ private:
 class OutputBuffer {
 public:
     explicit OutputBuffer(RunStore& store, size_t buffer_size = 1 << 20);
+    
+    // 删除拷贝构造函数和拷贝赋值运算符
+    OutputBuffer(const OutputBuffer&) = delete;
+    OutputBuffer& operator=(const OutputBuffer&) = delete;
+    
+    // 添加移动构造函数和移动赋值运算符
+    OutputBuffer(OutputBuffer&& other) noexcept;
+    OutputBuffer& operator=(OutputBuffer&& other) noexcept;
     
     /* 添加一个元素到缓冲区 */
     void add(int64_t value);

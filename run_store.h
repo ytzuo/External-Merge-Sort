@@ -10,7 +10,10 @@ class RunStore {
 public:
     explicit RunStore(const std::string &path, bool new_file = false, 
         uint32_t block_size = 65536) // 64KB
-        : file_(std::make_unique<MultiRunFile>(path, new_file, block_size)){}
+        : path_(path), 
+          file_(std::make_unique<MultiRunFile>(path, new_file, block_size)),
+          in_run_(false),
+          current_run_(0) {}
     
     
     void begin_run() {
@@ -86,8 +89,8 @@ public:
     // }
 
 private:
-    std::unique_ptr<MultiRunFile> file_;
     std::string path_;
+    std::unique_ptr<MultiRunFile> file_;
     bool in_run_;           // 是否正在一个run中
     uint32_t current_run_;  // 当前run的索引
 };

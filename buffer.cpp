@@ -8,7 +8,7 @@
 /* 实现 InputBuffer */
 InputBuffer::
 InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size)
-    : store_(store), buffer_size_(buffer_size), run_id_(run_id),
+    : store_(store), run_id_(run_id), buffer_size_(buffer_size),
     buffer_pos_(0), buffer_end_(0), consumed_(0) {
     // 直接从文件元数据中获取run的实际元素数量
     try {
@@ -20,10 +20,8 @@ InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size)
     //std::cout << "创建InputBuffer: run_id=" << run_id << ", total_size=" << total_size_ << std::endl;
 
     buffer_.reserve(buffer_size_);
-    /* 加载第一块 */
-    if(total_size_ > 0) {
-        load_next_block();
-    }
+    /* 不在构造函数中自动加载数据 */
+    // 数据将在 load_chunk 被调用时加载
 }
 
 bool InputBuffer:: 
@@ -146,6 +144,36 @@ void InputBuffer::load_chunk(uint32_t run_id, uint64_t offset, uint64_t count) {
     consumed_ = 0;
 }
 
+// 移动构造函数
+InputBuffer::InputBuffer(InputBuffer&& other) noexcept
+    : store_(other.store_),
+      run_id_(other.run_id_),
+      buffer_(std::move(other.buffer_)),
+      buffer_size_(other.buffer_size_),
+      buffer_pos_(other.buffer_pos_),
+      buffer_end_(other.buffer_end_),
+      total_size_(other.total_size_),
+      consumed_(other.consumed_) {
+    active.store(other.active.load());
+}
+
+// 移动赋值运算符
+InputBuffer& InputBuffer::operator=(InputBuffer&& other) noexcept {
+    if (this != &other) {
+        // 注意：store_ 是引用类型，不能重新赋值
+        // 假设移动赋值只在 store_ 相同的情况下发生
+        run_id_ = other.run_id_;
+        buffer_ = std::move(other.buffer_);
+        buffer_size_ = other.buffer_size_;
+        buffer_pos_ = other.buffer_pos_;
+        buffer_end_ = other.buffer_end_;
+        total_size_ = other.total_size_;
+        consumed_ = other.consumed_;
+        active.store(other.active.load());
+    }
+    return *this;
+}
+
 
 
 
@@ -230,4 +258,33 @@ is_active() const {
 bool OutputBuffer::
 toggle_active() {
     return active.exchange(!active.load());
+}
+
+// 移动构造函数
+OutputBuffer::OutputBuffer(OutputBuffer&& other) noexcept
+    : store_(other.store_),
+      buffer_(std::move(other.buffer_)),
+      buffer_size_(other.buffer_size_),
+      run_started_(other.run_started_) {
+    active.store(other.active.load());
+    // 防止原对象析构时 flush
+    other.run_started_ = false;
+}
+
+// 移动赋值运算符
+OutputBuffer& OutputBuffer::operator=(OutputBuffer&& other) noexcept {
+    if (this != &other) {
+        // 先 flush 现有数据
+        flush();
+        
+        // 注意：store_ 是引用类型，不能重新赋值
+        buffer_ = std::move(other.buffer_);
+        buffer_size_ = other.buffer_size_;
+        run_started_ = other.run_started_;
+        active.store(other.active.load());
+        
+        // 防止原对象析构时 flush
+        other.run_started_ = false;
+    }
+    return *this;
 }

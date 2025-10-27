@@ -249,6 +249,30 @@ multi_run_file.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/multi_run_file.cpp.s
 .PHONY : multi_run_file.cpp.s
 
+multi_thread_test.o: multi_thread_test.cpp.o
+.PHONY : multi_thread_test.o
+
+# target to build an object file
+multi_thread_test.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/multi_thread_test.cpp.o
+.PHONY : multi_thread_test.cpp.o
+
+multi_thread_test.i: multi_thread_test.cpp.i
+.PHONY : multi_thread_test.i
+
+# target to preprocess a source file
+multi_thread_test.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/multi_thread_test.cpp.i
+.PHONY : multi_thread_test.cpp.i
+
+multi_thread_test.s: multi_thread_test.cpp.s
+.PHONY : multi_thread_test.s
+
+# target to generate assembly for a file
+multi_thread_test.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/multi_thread_test.cpp.s
+.PHONY : multi_thread_test.cpp.s
+
 run_store.o: run_store.cpp.o
 .PHONY : run_store.o
 
@@ -272,6 +296,30 @@ run_store.s: run_store.cpp.s
 run_store.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/run_store.cpp.s
 .PHONY : run_store.cpp.s
+
+threads.o: threads.cpp.o
+.PHONY : threads.o
+
+# target to build an object file
+threads.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/threads.cpp.o
+.PHONY : threads.cpp.o
+
+threads.i: threads.cpp.i
+.PHONY : threads.i
+
+# target to preprocess a source file
+threads.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/threads.cpp.i
+.PHONY : threads.cpp.i
+
+threads.s: threads.cpp.s
+.PHONY : threads.s
+
+# target to generate assembly for a file
+threads.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/threads.cpp.s
+.PHONY : threads.cpp.s
 
 # Help Target
 help:
@@ -297,9 +345,15 @@ help:
 	@echo "... multi_run_file.o"
 	@echo "... multi_run_file.i"
 	@echo "... multi_run_file.s"
+	@echo "... multi_thread_test.o"
+	@echo "... multi_thread_test.i"
+	@echo "... multi_thread_test.s"
 	@echo "... run_store.o"
 	@echo "... run_store.i"
 	@echo "... run_store.s"
+	@echo "... threads.o"
+	@echo "... threads.i"
+	@echo "... threads.s"
 .PHONY : help
 
 

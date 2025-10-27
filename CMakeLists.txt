@@ -9,5 +9,7 @@ add_executable(data_structure_specialized_pratice
                run_store.cpp
                merge_plan.cpp
                merge_plan_tree_test.cpp
+               multi_thread_test.cpp
+               threads.cpp
                buffer.cpp)
 target_link_libraries(data_structure_specialized_pratice Threads::Threads)

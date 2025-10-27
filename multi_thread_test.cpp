@@ -40,13 +40,15 @@ void test_multi_thread() {
     /* 初始化输入缓冲区 */
     RunStore raw_store(RAW_FILENAME);
     std::vector<InputBuffer> ins;
-    ins.push_back(InputBuffer(raw_store, 0));
-    ins.push_back(InputBuffer(raw_store, 0));
+    ins.reserve(2);
+    ins.emplace_back(raw_store, 0);
+    ins.emplace_back(raw_store, 0);
     /* 初始化输出缓冲区 */
     RunStore init_store(INIT_FILENAME, true);
     std::vector<OutputBuffer> outs;
-    outs.push_back(OutputBuffer(init_store));
-    outs.push_back(OutputBuffer(init_store));
+    outs.reserve(2);
+    outs.emplace_back(init_store);
+    outs.emplace_back(init_store);
 
     std::atomic<bool> done_reading(false);
     std::atomic<size_t> next_task(0);
@@ -54,9 +56,9 @@ void test_multi_thread() {
     std::vector<Task> tasks = initTasks(raw_store);
     /* 启动线程 */
     std::cout << "启动线程..." << std::endl;
-    std::thread  read(reader, ins, done_reading, tasks, next_task);
-    std::thread  sort(sorter, ins, outs, done_reading, done_sorting);
-    std::thread write(outs, done_sorting);
+    std::thread  read(reader, std::ref(ins), std::ref(done_reading), std::ref(tasks), std::ref(next_task));
+    std::thread  sort(sorter, std::ref(ins), std::ref(outs), std::ref(done_reading), std::ref(done_sorting));
+    std::thread write(writer, std::ref(outs), std::ref(done_sorting));
     read.join();
     sort.join();
     write.join();
@@ -86,7 +88,7 @@ void test_multi_thread() {
     }
 
      // 使用执行函数
-    uint32_t final_result_id = execute_merge_plan_return_id(plan.get(), init_store, out_store);
+    execute_merge_plan_return_id(plan.get(), init_store, out_store);
     auto t4 = std::chrono::steady_clock::now();
 }
 
