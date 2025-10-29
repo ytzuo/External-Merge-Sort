@@ -55,12 +55,6 @@ void reader(std::vector<InputBuffer> &bfs,
     done_reading.exchange(true);
 }
 
-/*
-    还要加上对于生成的初始归并段的处理逻辑:
-    当开始时创建新的段, 当堆的顶端插不进输出缓冲区时(小于缓冲区的最后一个数字) 关闭段
-    可能需要修改排序逻辑
-*/
-
 void sorter(std::vector<InputBuffer>& inputs,
             std::vector<OutputBuffer>& outputs,
             const std::atomic<bool>& done_reading,
@@ -85,7 +79,7 @@ void sorter(std::vector<InputBuffer>& inputs,
             } else if (inputs[1].is_active()) {
                 current_input = &inputs[1];
             } else if (!frozen.empty()) {
-                // 输入缓冲区都空了，但冻结区有数据 → 重建堆
+                // 输入缓冲区都空了，但冻结区有数据 -> 利用冻结区重建堆
                 std::cout << "Sorter: rebuilding heap from frozen, size=" << frozen.size() << std::endl;
                 for (int64_t val : frozen) {
                     min_heap.push(val);

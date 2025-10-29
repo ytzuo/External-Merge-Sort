@@ -172,6 +172,9 @@ void MultiRunFile::end_run() {
 }
 
 void MultiRunFile::flush_directory() {
+    // 清除可能存在的EOF或错误标志（例如在create_entries扫描到文件末尾后）
+    file_.clear();
+    
     // 目录区始终在所有数据区之后
     header_.directory_offset = write_offset_;
     file_.seekp(0);
@@ -361,8 +364,15 @@ uint32_t MultiRunFile::create_entries() {
         directory_.push_back(entry);
     }    
     // 更新header中的run数目
-    header_.run_count = directory_.size();    
+    header_.run_count = directory_.size();
+    // 更新写入偏移量为文件末尾
+    write_offset_ = current_offset;
+    
+    // 写回文件头和目录到磁盘（确保元数据一致性）
+    flush_directory();
+    
     // 恢复原始文件位置
     file_.seekg(original_pos);
+    
     return directory_.size();
 }

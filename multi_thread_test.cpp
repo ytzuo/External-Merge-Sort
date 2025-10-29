@@ -90,6 +90,8 @@ void test_multi_thread() {
      // 使用执行函数
     execute_merge_plan_return_id(plan.get(), init_store, out_store);
     auto t4 = std::chrono::steady_clock::now();
+    std::cout << "Generate  : " << (t2 - t1).count() / 1e9 << " s\n"
+              << "Merge     : " << (t4 - t3).count() / 1e9 << " s\n";
 }
 
 
