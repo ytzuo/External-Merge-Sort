@@ -112,15 +112,16 @@ void sorter(std::vector<InputBuffer>& inputs,
                 std::this_thread::yield();
             }
             
+            // 批量输出堆中数据，直到堆空或需要切换缓冲区
             while (!min_heap.empty()) {
                 int64_t min_val = min_heap.top();
                 min_heap.pop();
 
                 outputs[cur_out].add(min_val);
                 last_output = min_val;
-
                 cur_out_count++;
-                // 当即将启用frozen作为输入时，结束本段，因为接下来插入的数字较小
+                
+                // 当需要切换到冻结区或输出缓冲区满时，结束本段
                 if (frozen_input || cur_out_count >= OUT_SWITCH_THRESHOLD) {
                     // 数据写完，通知 writer
                     outputs[cur_out].set_active(true);
@@ -129,16 +130,20 @@ void sorter(std::vector<InputBuffer>& inputs,
                     cur_out_count = 0;
                     break;  // 跳出内层循环，切换到下一个缓冲区
                 }
-
-                while(!frozen.empty()) { // 将冻结区的加入最小堆
+            }
+            
+            // 堆输出完毕后，处理冻结区和输入补充
+            if (min_heap.empty() && !frozen_input) {
+                // 将冻结区的元素加入最小堆
+                while(!frozen.empty()) {
                     int64_t f = frozen.back();
                     frozen.pop_back();
                     min_heap.push(f);
                 }
                 if(frozen.empty())
                     frozen_input = false;
-                // 尝试从输入获取新元素
-                // 检查两个缓冲区，找到一个有数据的
+                    
+                // 尝试从输入获取新元素补充堆
                 InputBuffer* src = nullptr;
                 if (inputs[0].is_active() && inputs[0].has_next()) {
                     src = &inputs[0];
@@ -147,13 +152,17 @@ void sorter(std::vector<InputBuffer>& inputs,
                 }
                 
                 if (src != nullptr) {
-                    int64_t in_val = src->next();
-                    if (in_val >= last_output) { 
-                        min_heap.push(in_val);
-                    } else { // 小于上一个输出的元素, 加入冻结区 
-                        frozen.push_back(in_val);
-                        if(frozen.size() > OUT_SWITCH_THRESHOLD) {
-                            frozen_input = true;
+                    // 批量读取输入元素
+                    while (src->has_next() && min_heap.size() < OUT_SWITCH_THRESHOLD) {
+                        int64_t in_val = src->next();
+                        if (in_val >= last_output) { 
+                            min_heap.push(in_val);
+                        } else { // 小于上一个输出的元素, 加入冻结区 
+                            frozen.push_back(in_val);
+                            if(frozen.size() > OUT_SWITCH_THRESHOLD) {
+                                frozen_input = true;
+                                break; // 冻结区过大，停止读取
+                            }
                         }
                     }
                 }
