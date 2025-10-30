@@ -30,7 +30,7 @@ void test_multi_thread() {
     const std::string RAW_FILENAME  = "raw.runs";
     const std::string INIT_FILENAME =  "initial.runs";
     const std::string MERGED_FILENAME = "merged.runs";
-    const uint64_t TOTAL = 10000000;
+    const uint64_t TOTAL = 1000000;
     //const uint64_t RUN_NUM = 10
 
     auto t1 = std::chrono::steady_clock::now();
@@ -64,6 +64,7 @@ void test_multi_thread() {
     write.join();
     std::cout << "生成文件元数据..." << std::endl;
     uint32_t RUN_NUM =  init_store.create_entries();
+    std::cout<<"生成 RUN_NUM = "<<RUN_NUM<<std::endl;
     auto t2 = std::chrono::steady_clock::now();
 
     std::vector<uint32_t> runs;
