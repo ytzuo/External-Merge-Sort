@@ -8,3 +8,7 @@
 
 // TODO : 实现输出线程, 类似于threads.cpp中的实现
 //        管理两个输出缓冲区
+
+#include <thread>
+#include "buffer_manager.h"
+#include "k_way_merge_threads.h"
