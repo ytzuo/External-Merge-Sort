@@ -30,10 +30,23 @@ private:
     int K;
     RunStore* in_store;                       // 非拥有
     BufferPool* pool;                         // 非拥有
-    std::vector<BufferQueue*> qs;             // 非拥有
+    std::vector<BufferQueue*> qs;             // 非拥有 用于将读取完毕的缓冲区加入队列
     std::vector<int64_t>* last_key;           // 非拥有
     std::vector<int> run_nums;
     std::vector<std::vector<int>> task;
+    /*
+        task说明: 
+            假设有10个归并段和4路归并, 那么task就包含三个vector<int>, 分别为:
+                [0, 1, 2, 3], [4, 5, 6, 7], [8, 9]
+            一轮结束后, task新增一个vector<int>, 用于存放下一轮的归并段编号:
+                [10, 11, 12]
+            当只剩下一个vector<int>, 且只包含一个段时, 说明归并已经完成
+
+        对于k路归并的过程:
+            每次处理k个归并段, 直到所有归并段处理完毕
+            首先在k个队列中分别读取数据, 接着不断补充, 直到所有队列中都不含有数据后, 本轮结束
+            重复上述过程, 直到所有任务处理完成
+    */
 public:
     InputThread(int K,
                 RunStore* store,
@@ -46,7 +59,8 @@ public:
     void inputRun();
 };
 
-struct Orchestrator {
+class kWayMergeManager {
+private:
     // 拥有的资源
     int K;
     RunStore* store;                                        // 非拥有（由上层创建/销毁）
