@@ -12,3 +12,35 @@
 #include <thread>
 #include "buffer_manager.h"
 #include "k_way_merge_threads.h"
+
+
+MergeThread::
+MergeThread(int K,
+            std::vector<BufferQueue*>& qs,
+            std::vector<int64_t>& last_key,
+            std::vector<OutputBuffer*>& outs,
+            BufferPool* pool)
+    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool){}
+
+void MergeThread::
+kWayMerge() {
+
+}
+
+
+
+InputThread::
+InputThread(int K,
+            RunStore* store,
+            BufferPool* pool,
+            std::vector<BufferQueue*>& qs,
+            std::vector<int64_t>& last_key,
+            std::vector<int> run_nums,
+            std::vector<std::vector<int>> task)
+    : K(K), in_store(store), pool(pool), qs(qs),
+    last_key(&last_key),
+    run_nums(std::move(run_nums)), task(std::move(task)) {}
+
+void InputThread::
+inputRun() {
+}

@@ -1,57 +1,67 @@
 #pragma once
+#include "buffer.h"
 #include "buffer_manager.h"
+#include "multi_run_file.h"
+#include "run_store.h"
 #include <vector>
+#include <thread>
 
-class mergeThread {
+// MergeThread：只拿共享通道的引用/指针，不持有 InputThread 指针
+class MergeThread {
 private:
-    int K; // K 路
-    std::vector<BufferQueue*> bufferQueue; // 储存K个缓冲区队列
-    std::vector<int64_t> last_key; // 维护每个段的最后读的一个key, 用于确定下一个读的段
+    int K;
+    std::vector<BufferQueue*> qs;            // 各段输入队列（非拥有）
+    std::vector<int64_t>* last_key;          // 共享调度视图（非拥有）
+    std::vector<OutputBuffer*> outs;         // 双输出缓冲（非拥有）
+    BufferPool* pool;                         // 用于回收输入缓冲（非拥有）
 public:
-    mergeThread(int K) {
-        this->K = K;
-        for (int i = 0; i < K; i++) {
-            bufferQueue.push_back(new BufferQueue());
-            last_key.push_back(0);
-        }
-    }
-    void kWayMerge() {
+    MergeThread(int K,
+                std::vector<BufferQueue*>& qs,
+                std::vector<int64_t>& last_key,
+                std::vector<OutputBuffer*>& outs,
+                BufferPool* pool);
 
-    }
+    void kWayMerge();
 };
 
-class inputThread {
+// InputThread：不拿 MergeThread 指针；直接读 last_key 和队列
+class InputThread {
 private:
-    int K; // K 路
-    BufferPool* bufferPool; // 储存缓冲区的池子
-    mergeThread* worker;        // 需要一个指向 mergeThread 的指针，以便查询
-    std::vector<int> run_nums; // 维护每个缓冲区队列对应的段的编号
-    std::vector<std::vector<int>> task; // 维护每个缓冲区队列负责的段的列表
+    int K;
+    RunStore* in_store;                       // 非拥有
+    BufferPool* pool;                         // 非拥有
+    std::vector<BufferQueue*> qs;             // 非拥有
+    std::vector<int64_t>* last_key;           // 非拥有
+    std::vector<int> run_nums;
+    std::vector<std::vector<int>> task;
 public:
-    inputThread(int K, mergeThread* worker, std::vector<int> run_nums, std::vector<std::vector<int>> task) {
-        this->K = K;
-        this->worker = worker;
-        this->run_nums = run_nums;
-        this->task = task;
-        bufferPool = new BufferPool(K);
-    }
+    InputThread(int K,
+                RunStore* store,
+                BufferPool* pool,
+                std::vector<BufferQueue*>& qs,
+                std::vector<int64_t>& last_key,
+                std::vector<int> run_nums,
+                std::vector<std::vector<int>> task);
 
-    void initPool() {
-        // 创建K个缓冲区队列中的初始缓冲区, 并读取数据
-        for(int i = 0; i < K; i++) {
-            
-        }
-    }
-
-    void inputRun() {
-
-    }
+    void inputRun();
 };
 
-/* 这个好像不需要, 可以复用threads.cpp中的writer */
-// class outputThread {
-// private:
+struct Orchestrator {
+    // 拥有的资源
+    int K;
+    RunStore* store;                                        // 非拥有（由上层创建/销毁）
+    std::vector<std::unique_ptr<BufferQueue>> q_storage;    // 真正持有
+    std::vector<BufferQueue*> qs;                           // 裸指针视图（便于传参）
+    std::vector<int64_t> last_key;                          // 共享调度视图
+    std::vector<OutputBuffer*> outs;                        // 由上层传入管理（非拥有）
+    BufferPool pool;                                        // 空闲输入缓冲池（你已改为外部注入构造）
 
+    // 线程实体
+    MergeThread merge;
+    InputThread input;
 
-// public:
-// };
+    // 线程对象
+    std::thread t_input;
+    std::thread t_merge;
+    std::thread t_writer;
+};
