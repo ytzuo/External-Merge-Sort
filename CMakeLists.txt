@@ -11,5 +11,7 @@ add_executable(data_structure_specialized_pratice
                merge_plan_tree_test.cpp
                multi_thread_test.cpp
                threads.cpp
-               buffer.cpp)
+               buffer.cpp
+               k_way_merge_threads.cpp
+               k_way_merge_test.cpp)
 target_link_libraries(data_structure_specialized_pratice Threads::Threads)

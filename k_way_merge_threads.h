@@ -37,9 +37,9 @@ private:
     /*
         task说明: 
             假设有10个归并段和4路归并, 那么task就包含三个vector<int>, 分别为:
-                [0, 1, 2, 3], [4, 5, 6, 7], [8, 9]
-            一轮结束后, task新增一个vector<int>, 用于存放下一轮的归并段编号:
-                [10, 11, 12]
+                [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]
+            第三个task中的10和11来自于前两次任务生成的
+                
             当只剩下一个vector<int>, 且只包含一个段时, 说明归并已经完成
 
         对于k路归并的过程:
@@ -79,3 +79,5 @@ private:
     std::thread t_merge;
     std::thread t_writer;
 };
+
+std::vector<std::vector<int>> generate_task(int K, int total_runs);

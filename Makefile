@@ -153,6 +153,54 @@ buffer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/buffer.cpp.s
 .PHONY : buffer.cpp.s
 
+k_way_merge_test.o: k_way_merge_test.cpp.o
+.PHONY : k_way_merge_test.o
+
+# target to build an object file
+k_way_merge_test.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_test.cpp.o
+.PHONY : k_way_merge_test.cpp.o
+
+k_way_merge_test.i: k_way_merge_test.cpp.i
+.PHONY : k_way_merge_test.i
+
+# target to preprocess a source file
+k_way_merge_test.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_test.cpp.i
+.PHONY : k_way_merge_test.cpp.i
+
+k_way_merge_test.s: k_way_merge_test.cpp.s
+.PHONY : k_way_merge_test.s
+
+# target to generate assembly for a file
+k_way_merge_test.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_test.cpp.s
+.PHONY : k_way_merge_test.cpp.s
+
+k_way_merge_threads.o: k_way_merge_threads.cpp.o
+.PHONY : k_way_merge_threads.o
+
+# target to build an object file
+k_way_merge_threads.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_threads.cpp.o
+.PHONY : k_way_merge_threads.cpp.o
+
+k_way_merge_threads.i: k_way_merge_threads.cpp.i
+.PHONY : k_way_merge_threads.i
+
+# target to preprocess a source file
+k_way_merge_threads.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_threads.cpp.i
+.PHONY : k_way_merge_threads.cpp.i
+
+k_way_merge_threads.s: k_way_merge_threads.cpp.s
+.PHONY : k_way_merge_threads.s
+
+# target to generate assembly for a file
+k_way_merge_threads.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/data_structure_specialized_pratice.dir/build.make CMakeFiles/data_structure_specialized_pratice.dir/k_way_merge_threads.cpp.s
+.PHONY : k_way_merge_threads.cpp.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -333,6 +381,12 @@ help:
 	@echo "... buffer.o"
 	@echo "... buffer.i"
 	@echo "... buffer.s"
+	@echo "... k_way_merge_test.o"
+	@echo "... k_way_merge_test.i"
+	@echo "... k_way_merge_test.s"
+	@echo "... k_way_merge_threads.o"
+	@echo "... k_way_merge_threads.i"
+	@echo "... k_way_merge_threads.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"

@@ -10,9 +10,29 @@
 //        管理两个输出缓冲区
 
 #include <thread>
+#include <algorithm>
 #include "buffer_manager.h"
 #include "k_way_merge_threads.h"
 
+/* 规划归并任务 */
+std::vector<std::vector<int>> generate_task(int K, int total_runs) {
+    std::vector<std::vector<int>> tasks;
+    int next_turn_runs = total_runs;
+    int turn_beg = 0;
+    while(next_turn_runs != 1) {
+        std::vector<int> t;
+        int end = std::min(turn_beg + K, turn_beg + next_turn_runs);
+        // std::cout<<end<<std::endl;
+        for(int i = turn_beg; i < end; i++) {
+            t.push_back(i);
+        }
+        tasks.push_back(t);
+        turn_beg += K;
+        next_turn_runs -= std::min(K, next_turn_runs);
+        next_turn_runs ++;
+    }
+    return tasks;
+}
 
 MergeThread::
 MergeThread(int K,
