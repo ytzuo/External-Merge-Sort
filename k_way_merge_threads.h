@@ -62,8 +62,6 @@ private:
     std::vector<OutputBuffer*> outs;         // 双输出缓冲（非拥有）
     BufferPool* pool;                         // 用于回收输入缓冲（非拥有）
 
-    // 每轮开始时初始化 K 个输入缓冲区
-    void initializeRound(const std::vector<int>& run_ids);
 public:
     MergeThread(int K,
                 std::vector<BufferQueue*>& qs,
@@ -82,7 +80,7 @@ private:
     BufferPool* pool;                         // 非拥有
     std::vector<BufferQueue*> qs;             // 非拥有 用于将读取完毕的缓冲区加入队列
     std::vector<int64_t>* last_key;           // 非拥有
-    std::vector<int> run_nums;
+    std::vector<int> run_nums;                
     std::vector<std::vector<int>> task;
     /*
         task说明: 
@@ -107,6 +105,8 @@ public:
                 std::vector<std::vector<int>> task);
 
     void inputRun();
+    // 每轮开始时初始化 K 个输入缓冲区
+    void initializeRound(const std::vector<int>& run_ids);
 };
 
 class kWayMergeManager {
