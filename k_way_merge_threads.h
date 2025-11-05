@@ -60,16 +60,20 @@ private:
     std::vector<BufferQueue*> qs;            // 各段输入队列（非拥有）
     std::vector<int64_t>* last_key;          // 共享调度视图（非拥有）
     std::vector<OutputBuffer*> outs;         // 双输出缓冲（非拥有）
-    BufferPool* pool;                         // 用于回收输入缓冲（非拥有）
+    BufferPool* pool;                        // 用于回收输入缓冲（非拥有）
+    std::vector<std::vector<int>> task;
+    std::atomic<bool>& inited;               // 本轮任务是否初始化完成
 
 public:
     MergeThread(int K,
                 std::vector<BufferQueue*>& qs,
                 std::vector<int64_t>& last_key,
                 std::vector<OutputBuffer*>& outs,
-                BufferPool* pool);
+                BufferPool* pool,
+                std::vector<std::vector<int>> task,
+                std::atomic<bool>& inited);
 
-    void kWayMerge(std::vector<OutputBuffer>& outputs);
+    void kWayMerge(std::vector<OutputBuffer>& outputs, int task_num);
 };
 
 // InputThread：不拿 MergeThread 指针；直接读 last_key 和队列
@@ -82,6 +86,7 @@ private:
     std::vector<int64_t>* last_key;           // 非拥有
     std::vector<int> run_nums;                
     std::vector<std::vector<int>> task;
+    std::atomic<bool>& inited;               // 本轮任务是否初始化完成
     /*
         task说明: 
             假设有10个归并段和4路归并, 那么task就包含三个vector<int>, 分别为:
@@ -102,7 +107,8 @@ public:
                 std::vector<BufferQueue*>& qs,
                 std::vector<int64_t>& last_key,
                 std::vector<int> run_nums,
-                std::vector<std::vector<int>> task);
+                std::vector<std::vector<int>> task,
+                std::atomic<bool>& inited);
 
     void inputRun();
     // 每轮开始时初始化 K 个输入缓冲区

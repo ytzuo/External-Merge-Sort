@@ -62,6 +62,10 @@ public:
         return totalNum;
     }
 
+    bool empty() {
+        return bufferQueue.size() == 0;
+    }
+
     // 添加一个缓冲区进入队列
     void addBuffer(InputBuffer* buffer) {
         bufferQueue.push(buffer);

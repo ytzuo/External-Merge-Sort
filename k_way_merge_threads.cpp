@@ -40,24 +40,75 @@ MergeThread(int K,
             std::vector<BufferQueue*>& qs,
             std::vector<int64_t>& last_key,
             std::vector<OutputBuffer*>& outs,
-            BufferPool* pool)
-    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool){}
+            BufferPool* pool,
+            std::vector<std::vector<int>> task,
+            std::atomic<bool>& inited)
+    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool), task(task), inited(inited){}
 
 
 void MergeThread::
-kWayMerge(std::vector<OutputBuffer>& outputs) {
+kWayMerge(std::vector<OutputBuffer>& outputs, int task_num) {
 
-    // 初始化最小堆
-    std::priority_queue<std::pair<int64_t, int>, 
-                        std::vector<std::pair<int64_t, int>>, 
-                        std::greater<std::pair<int64_t, int>>> pq;
-    std::vector<InputBuffer*> current_buffers(K, nullptr); // 当前正在使用的缓冲区
-    int cur_out = 0;
-    uint64_t cur_out_count = 0;
+   // 初始化最小堆
+   std::priority_queue<std::pair<int64_t, int>, 
+                       std::vector<std::pair<int64_t, int>>, 
+                       std::greater<std::pair<int64_t, int>>> pq;
+   std::vector<InputBuffer*> current_buffers(K, nullptr); // 当前正在使用的缓冲区
+   int cur_out  = 0;
+   int cur_task = 0;
+   //uint64_t cur_out_count = 0;
 
-    while(true) {
-      
-    }
+   while(cur_task < task_num) {
+      while(!inited.load()) {
+         std::this_thread::yield();
+      }
+
+      int queue_num = task[cur_task].size();
+      for(int i = 0; i < queue_num; i++) { // 初始化最小堆
+         current_buffers[i] = qs[i]->getBuffer();
+         pq.push(std::make_pair(current_buffers[i]->next(), i));
+      }
+      // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
+      // 当一个缓冲区为空, 确认该缓冲区是否已经读完, 如果没有则等待输入线程填充数据
+      // 已经读完则继续
+      while(true) {
+         // 检查有没有空的缓冲区
+         for(int i = 0; i < queue_num; i++) {
+            if(current_buffers[i] == nullptr) { // 当前没有缓冲区正在使用
+               if(qs[i]->empty() && qs[i]->getTotalNum() == 0) { 
+                  // 对应缓冲区队列也为空, 且也没有需要读取的数据
+                  continue; // 跳过这个缓冲区
+               } else if (!qs[i]->empty()) {
+                  // 加载一个缓冲区
+                  current_buffers[i] = qs[i]->getBuffer(); 
+               } else if (qs[i]->getTotalNum() != 0){ 
+                  // 还有需要读取的
+                  i--; // 挂起等待
+                  std::this_thread::yield();
+               }
+            }
+         }
+
+         while(!pq.empty()) {
+            std::pair<int64_t, int> top = pq.top();
+            int64_t val = top.first;
+            int src = top.second;
+            pq.pop();
+            // 待完成: 写入输出缓冲区和输出控制逻辑
+
+            if(current_buffers[src]->has_next()) { // 缓冲区还有数据
+               // 从对应缓冲区队列加入一个数据到最小堆
+               pq.push(std::make_pair(current_buffers[src]->next(), src));
+            } else { // 移除缓冲区并还到 pool
+               pool->returnBuffer(current_buffers[src]);
+               current_buffers[src] = nullptr;
+            }
+         }
+      }
+      // 一轮结束, 回到未初始化状态
+      inited.store(false);
+      cur_task ++;
+   }
     /*
         【归并线程同步逻辑设计】
         
@@ -123,7 +174,7 @@ initializeRound(const std::vector<int>& run_ids) {
      */
    for(int i = 0; i < K; i++) {
       InputBuffer* buffer = pool->getBuffer();
-      while(buffer == nullptr) { // 没有空闲的缓冲区
+      while(buffer == nullptr) { // 没有空闲的缓冲区, 等待
          std::this_thread::yield();
          buffer = pool->getBuffer();
       }
@@ -149,9 +200,11 @@ InputThread(int K,
             std::vector<BufferQueue*>& qs,
             std::vector<int64_t>& last_key,
             std::vector<int> run_nums,
-            std::vector<std::vector<int>> task)
+            std::vector<std::vector<int>> task,
+            std::atomic<bool>& inited)
     : K(K), in_store(store), pool(pool), qs(qs),
     last_key(&last_key),
+    inited(inited),
     run_nums(std::move(run_nums)), task(std::move(task)) {}
 
 void InputThread::
@@ -169,8 +222,12 @@ inputRun() {
          run_sizes[i] = in_store->get_run_size(current_run_ids[i]);
       }
       
+      while(inited.load()) { // 等待本轮任务结束
+         std::this_thread::yield();
+      }
       // 初始化新的一轮 - 为每个段读取第一个缓冲区
       initializeRound(current_run_ids);
+      inited.store(true); // 初始化完成
       
       // 更新初始偏移和last_key
       for(int i = 0; i < K; i++) {
@@ -205,7 +262,7 @@ inputRun() {
             }
          }
          
-         if(min_index == -1) break; // 没有可读的段
+         if(min_index == -1) break; // 没有可读的段, 结束本轮
          
          // 从缓冲池获取空闲缓冲区
          InputBuffer* buffer = pool->getBuffer();
