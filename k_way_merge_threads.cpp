@@ -1,114 +1,3 @@
-// TODO : 实现k路归并中, 新增的三个线程
-
-// TODO : 实现归并线程: 需要有k个叶子的败者树或k个输入来源的最小堆
-//        需要实现一个管理叶子或输入来源对应的缓冲区的队列
-
-// TODO : 实现输入线程, 维护空缓冲区池, 
-//        每次从最可能被耗尽的归并段中读取一个缓冲区的数据并加入对应队列
-
-// TODO : 实现输出线程, 类似于threads.cpp中的实现
-//        管理两个输出缓冲区
-
-#include <thread>
-#include <algorithm>
-#include <queue>
-#include "buffer_manager.h"
-#include "k_way_merge_threads.h"
-
-/* 规划归并任务 */
-std::vector<std::vector<int>> generate_task(int K, int total_runs) {
-    std::vector<std::vector<int>> tasks;
-    int next_turn_runs = total_runs;
-    int turn_beg = 0;
-    while(next_turn_runs != 1) {
-        std::vector<int> t;
-        int end = std::min(turn_beg + K, turn_beg + next_turn_runs);
-        // std::cout<<end<<std::endl;
-        for(int i = turn_beg; i < end; i++) {
-            t.push_back(i);
-        }
-        tasks.push_back(t);
-        turn_beg += K;
-        next_turn_runs -= std::min(K, next_turn_runs);
-        next_turn_runs ++;
-    }
-    return tasks;
-}
-
-MergeThread::
-MergeThread(int K,
-            std::vector<BufferQueue*>& qs,
-            std::vector<int64_t>& last_key,
-            std::vector<OutputBuffer*>& outs,
-            BufferPool* pool,
-            std::vector<std::vector<int>> task,
-            std::atomic<bool>& inited)
-    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool), task(task), inited(inited){}
-
-
-void MergeThread::
-kWayMerge(std::vector<OutputBuffer>& outputs, int task_num) {
-
-   // 初始化最小堆
-   std::priority_queue<std::pair<int64_t, int>, 
-                       std::vector<std::pair<int64_t, int>>, 
-                       std::greater<std::pair<int64_t, int>>> pq;
-   std::vector<InputBuffer*> current_buffers(K, nullptr); // 当前正在使用的缓冲区
-   int cur_out  = 0;
-   int cur_task = 0;
-   //uint64_t cur_out_count = 0;
-
-   while(cur_task < task_num) {
-      while(!inited.load()) {
-         std::this_thread::yield();
-      }
-
-      int queue_num = task[cur_task].size();
-      for(int i = 0; i < queue_num; i++) { // 初始化最小堆
-         current_buffers[i] = qs[i]->getBuffer();
-         pq.push(std::make_pair(current_buffers[i]->next(), i));
-      }
-      // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
-      // 当一个缓冲区为空, 确认该缓冲区是否已经读完, 如果没有则等待输入线程填充数据
-      // 已经读完则继续
-      while(true) {
-         // 检查有没有空的缓冲区
-         for(int i = 0; i < queue_num; i++) {
-            if(current_buffers[i] == nullptr) { // 当前没有缓冲区正在使用
-               if(qs[i]->empty() && qs[i]->getTotalNum() == 0) { 
-                  // 对应缓冲区队列也为空, 且也没有需要读取的数据
-                  continue; // 跳过这个缓冲区
-               } else if (!qs[i]->empty()) {
-                  // 加载一个缓冲区
-                  current_buffers[i] = qs[i]->getBuffer(); 
-               } else if (qs[i]->getTotalNum() != 0){ 
-                  // 还有需要读取的
-                  i--; // 挂起等待
-                  std::this_thread::yield();
-               }
-            }
-         }
-
-         while(!pq.empty()) {
-            std::pair<int64_t, int> top = pq.top();
-            int64_t val = top.first;
-            int src = top.second;
-            pq.pop();
-            // 待完成: 写入输出缓冲区和输出控制逻辑
-
-            if(current_buffers[src]->has_next()) { // 缓冲区还有数据
-               // 从对应缓冲区队列加入一个数据到最小堆
-               pq.push(std::make_pair(current_buffers[src]->next(), src));
-            } else { // 移除缓冲区并还到 pool
-               pool->returnBuffer(current_buffers[src]);
-               current_buffers[src] = nullptr;
-            }
-         }
-      }
-      // 一轮结束, 回到未初始化状态
-      inited.store(false);
-      cur_task ++;
-   }
     /*
         【归并线程同步逻辑设计】
         
@@ -164,6 +53,119 @@ kWayMerge(std::vector<OutputBuffer>& outputs, int task_num) {
            - last_key[i] 由InputThread维护，表示第i路已读到的最后一个key位置
            - 当所有task完成后，设置全局标志通知其他线程结束
     */
+#include <thread>
+#include <algorithm>
+#include <queue>
+#include "buffer_manager.h"
+#include "k_way_merge_threads.h"
+
+/* 规划归并任务 */
+std::vector<std::vector<int>> generate_task(int K, int total_runs) {
+    std::vector<std::vector<int>> tasks;
+    int next_turn_runs = total_runs;
+    int turn_beg = 0;
+    while(next_turn_runs != 1) {
+        std::vector<int> t;
+        int end = std::min(turn_beg + K, turn_beg + next_turn_runs);
+        // std::cout<<end<<std::endl;
+        for(int i = turn_beg; i < end; i++) {
+            t.push_back(i);
+        }
+        tasks.push_back(t);
+        turn_beg += K;
+        next_turn_runs -= std::min(K, next_turn_runs);
+        next_turn_runs ++;
+    }
+    return tasks;
+}
+
+MergeThread::
+MergeThread(int K,
+            std::vector<BufferQueue*>& qs,
+            std::vector<int64_t>& last_key,
+            std::vector<OutputBuffer*>& outs,
+            BufferPool* pool,
+            std::vector<std::vector<int>> task,
+            std::atomic<bool>& inited)
+    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool), task(task), inited(inited){}
+
+
+void MergeThread::
+kWayMerge(std::vector<OutputBuffer>& outputs, int task_num, std::atomic<bool>& done_sorting) {
+
+   // 初始化最小堆
+   std::priority_queue<std::pair<int64_t, int>, 
+                       std::vector<std::pair<int64_t, int>>, 
+                       std::greater<std::pair<int64_t, int>>> pq;
+   std::vector<InputBuffer*> current_buffers(K, nullptr); // 当前正在使用的缓冲区
+   int cur_out  = 0;
+   size_t cur_out_count = 0;
+   const size_t OUT_SWITCH_THRESHOLD = 1 << 16;
+   int cur_task = 0;
+   //uint64_t cur_out_count = 0;
+
+   while(cur_task < task_num) {
+      while(!inited.load()) {
+         std::this_thread::yield();
+      }
+
+      int queue_num = task[cur_task].size();
+      for(int i = 0; i < queue_num; i++) { // 初始化最小堆
+         current_buffers[i] = qs[i]->getBuffer();
+         pq.push(std::make_pair(current_buffers[i]->next(), i));
+      }
+      // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
+      // 当一个缓冲区为空, 确认该缓冲区是否已经读完, 如果没有则等待输入线程填充数据
+      // 已经读完则继续
+      while(true) {
+         // 检查有没有空的缓冲区
+         for(int i = 0; i < queue_num; i++) {
+            if(current_buffers[i] == nullptr) { // 当前某段没有缓冲区正在使用
+               if(qs[i]->empty() && qs[i]->getTotalNum() == 0) { 
+                  // 对应缓冲区队列也为空, 且也没有需要读取的数据
+                  continue; // 说明已经读取完成, 跳过这个缓冲区
+               } else if (!qs[i]->empty()) {
+                  // 还有缓冲区则加载一个缓冲区
+                  current_buffers[i] = qs[i]->getBuffer(); 
+               } else if (qs[i]->getTotalNum() != 0){ 
+                  // 段中还有需要读取的
+                  i--; // 挂起并回退等待一个缓冲区读取完成
+                  std::this_thread::yield();
+               }
+            }
+         }
+
+         while(!pq.empty()) {
+            std::pair<int64_t, int> top = pq.top();
+            int64_t val = top.first;
+            int src = top.second;
+            pq.pop();
+
+            while(outputs[cur_out].is_active()) { // 等待缓冲区可用
+               std::this_thread::yield();
+            }
+            outputs[cur_out].add(val);
+            cur_out_count++;
+            if(cur_out_count >= OUT_SWITCH_THRESHOLD) {
+               outputs[cur_out].set_active(true);
+               cur_out = 1 - cur_out;
+               cur_out_count = 0;
+            }
+
+            if(current_buffers[src]->has_next()) { // 缓冲区还有数据
+               // 从对应缓冲区队列加入一个数据到最小堆
+               pq.push(std::make_pair(current_buffers[src]->next(), src));
+            } else { // 移除缓冲区并还到 pool
+               pool->returnBuffer(current_buffers[src]);
+               current_buffers[src] = nullptr;
+            }
+         }
+      }
+      // 一轮结束, 回到未初始化状态
+      inited.store(false);
+      cur_task ++;
+   }
+   done_sorting.store(true); // 通知写入线程已经排序完毕
 }
 
 void InputThread::

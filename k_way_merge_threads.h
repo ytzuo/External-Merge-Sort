@@ -73,7 +73,7 @@ public:
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 
-    void kWayMerge(std::vector<OutputBuffer>& outputs, int task_num);
+    void kWayMerge(std::vector<OutputBuffer>& outputs, int task_num, std::atomic<bool>& done_sorting);
 };
 
 // InputThread：不拿 MergeThread 指针；直接读 last_key 和队列
