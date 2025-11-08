@@ -207,3 +207,33 @@ void writer(std::vector<OutputBuffer> &bfs,
         }
     }
 }
+
+void writer_p(std::vector<OutputBuffer*> &bfs, 
+            const std::atomic<bool>& done_sorting) {
+        bool use_buffer_1 = true;
+
+    while(!done_sorting.load()) {
+        OutputBuffer* output = use_buffer_1? bfs[0] : bfs[1];
+        
+        // 等待缓冲区被标记为需要写入
+        while(!output->is_active() && !done_sorting.load()) {
+            std::this_thread::yield();
+        }
+        
+        if(done_sorting.load()) break;
+
+        output->flush_direct();
+        output->set_active(false);
+        
+        use_buffer_1 = !use_buffer_1;
+    }
+    
+    // 排序完成后，检查是否还有剩余数据需要 flush
+    for (auto& buf : bfs) {
+        if (buf->is_active() || !buf->empty()) {
+            buf->flush_direct();
+            buf->set_active(false);
+        }
+    }        
+            
+}

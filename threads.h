@@ -27,3 +27,6 @@ void sorter(std::vector<InputBuffer>& inputs,
 
 void writer(std::vector<OutputBuffer> &bfs, 
             const std::atomic<bool>& done_sorting);
+
+void writer_p(std::vector<OutputBuffer*> &bfs, 
+            const std::atomic<bool>& done_sorting);

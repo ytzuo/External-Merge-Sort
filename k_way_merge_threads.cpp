@@ -91,7 +91,7 @@ MergeThread(int K,
 
 
 void MergeThread::
-kWayMerge(std::vector<OutputBuffer>& outputs, int task_num, std::atomic<bool>& done_sorting) {
+kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
 
    // 初始化最小堆
    std::priority_queue<std::pair<int64_t, int>, 
@@ -141,13 +141,13 @@ kWayMerge(std::vector<OutputBuffer>& outputs, int task_num, std::atomic<bool>& d
             int src = top.second;
             pq.pop();
 
-            while(outputs[cur_out].is_active()) { // 等待缓冲区可用
+            while(outs[cur_out]->is_active()) { // 等待缓冲区可用
                std::this_thread::yield();
             }
-            outputs[cur_out].add(val);
+            outs[cur_out]->add(val);
             cur_out_count++;
             if(cur_out_count >= OUT_SWITCH_THRESHOLD) {
-               outputs[cur_out].set_active(true);
+               outs[cur_out]->set_active(true);
                cur_out = 1 - cur_out;
                cur_out_count = 0;
             }
@@ -201,13 +201,12 @@ InputThread(int K,
             BufferPool* pool,
             std::vector<BufferQueue*>& qs,
             std::vector<int64_t>& last_key,
-            std::vector<int> run_nums,
             std::vector<std::vector<int>> task,
             std::atomic<bool>& inited)
     : K(K), in_store(store), pool(pool), qs(qs),
     last_key(&last_key),
     inited(inited),
-    run_nums(std::move(run_nums)), task(std::move(task)) {}
+    task(std::move(task)) {}
 
 void InputThread::
 inputRun() {
@@ -238,7 +237,7 @@ inputRun() {
                                         static_cast<size_t>(1 << 13)); // 8192个元素
             run_offsets[i] = chunk_size;
             // last_key记录已读取的元素数量
-            (*last_key)[i] = chunk_size;
+            (*last_key)[i] = 0;
          }
       }
       

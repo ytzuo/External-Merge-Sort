@@ -73,7 +73,7 @@ public:
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 
-    void kWayMerge(std::vector<OutputBuffer>& outputs, int task_num, std::atomic<bool>& done_sorting);
+    void kWayMerge(size_t task_num, std::atomic<bool>& done_sorting);
 };
 
 // InputThread：不拿 MergeThread 指针；直接读 last_key 和队列
@@ -83,8 +83,7 @@ private:
     RunStore* in_store;                       // 非拥有
     BufferPool* pool;                         // 非拥有
     std::vector<BufferQueue*> qs;             // 非拥有 用于将读取完毕的缓冲区加入队列
-    std::vector<int64_t>* last_key;           // 非拥有
-    std::vector<int> run_nums;                
+    std::vector<int64_t>* last_key;           // 非拥有        
     std::vector<std::vector<int>> task;
     std::atomic<bool>& inited;               // 本轮任务是否初始化完成
     /*
@@ -106,7 +105,6 @@ public:
                 BufferPool* pool,
                 std::vector<BufferQueue*>& qs,
                 std::vector<int64_t>& last_key,
-                std::vector<int> run_nums,
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 

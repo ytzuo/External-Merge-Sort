@@ -1,6 +1,9 @@
 // TODO : 实现k路归并测试代码
 #include <iostream>
+#include "buffer.h"
+#include "buffer_manager.h"
 #include "k_way_merge_threads.h"
+#include "run_store.h"
 #include "threads.h"
 #include <random>
 #include <vector>
@@ -62,8 +65,31 @@ void k_way_merge_test() {
     std::cout<<"生成 RUN_NUM = "<<RUN_NUM<<std::endl;
     auto t2 = std::chrono::steady_clock::now();
 
+    auto t3 = std::chrono::steady_clock::now();
     std::vector<std::vector<int>> merge_tasks = generate_task(K, RUN_NUM);
-    // 待完成: K路归并的三线程的初始化和运行
+    
+    BufferPool pool(2 * K);              // 缓冲池，有 2K 个段
+    std::vector<BufferQueue*> qs;                 // 缓冲区队列, 初始应该为空
+    std::vector<OutputBuffer*> merge_outs;        // 输出缓冲区, 初始有两个空缓冲区
+    RunStore merged_store(MERGED_FILENAME, true);
+    merge_outs.emplace_back(new OutputBuffer(merged_store));
+    merge_outs.emplace_back(new OutputBuffer(merged_store));
+    std::vector<int64_t> last_key;                // 最后一个输出的元素
+    std::atomic<bool> inited(false);           //  本轮任务是否初始化完成
+
+    InputThread input_thread(K, &merged_store, &pool, qs, last_key, merge_tasks, inited);
+    MergeThread merge_thread(K, qs, last_key, merge_outs, &pool, merge_tasks, inited);
+    std::cout << "启动K路归并线程..." << std::endl;
+    done_sorting.store(false);
+    std::thread  input(&InputThread::inputRun, &input_thread);
+    std::thread  merge(&MergeThread::kWayMerge, &merge_thread, merge_tasks.size(), std::ref(done_sorting));
+    std::thread output(writer_p, std::ref(merge_outs), std::ref(done_sorting));
+    input.join();
+    merge.join();
+    output.join();
+    auto t4 = std::chrono::steady_clock::now();
+    std::cout << "Generate  : " << (t2 - t1).count() / 1e9 << " s\n"
+              << "Merge     : " << (t4 - t3).count() / 1e9 << " s\n";
 }
 
 int main() {
