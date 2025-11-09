@@ -53,40 +53,63 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
       while(!inited.load()) {
          std::this_thread::yield();
       }
+      std::cout<<"开始处理第"<<cur_task<<"轮"<<std::endl;
 
       int queue_num = task[cur_task].size();
       for(int i = 0; i < queue_num; i++) { // 初始化最小堆
+         //std::cout<<"MergeThread: 正在从队列"<<i<<"获取缓冲区..."<<std::endl;
          current_buffers[i] = qs[i]->getBuffer(); // 取出队列头部的缓冲区
+         //std::cout<<"MergeThread: 从队列"<<i<<"获取缓冲区成功，加入堆..."<<std::endl;
          pq.push(std::make_pair(current_buffers[i]->next(), i));
+         //std::cout<<"MergeThread: 队列"<<i<<"的第一个元素已加入堆"<<std::endl;
       }
+      std::cout<<"MergeThread: 堆初始化完成，开始归并循环..."<<std::endl;
       // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
       // 当一个缓冲区为空, 确认该缓冲区是否已经读完, 如果没有则等待输入线程填充数据
       // 已经读完则继续
       while(true) {
          // 检查有没有空的缓冲区
+         int finished_run_count = 0;
+         
          for(int i = 0; i < queue_num; i++) {
             if(current_buffers[i] == nullptr) { // 当前某段没有缓冲区正在使用
-               if(qs[i]->empty() && !qs[i]->has_next()) { 
+               bool is_empty = qs[i]->empty();
+               bool has_next = qs[i]->has_next();
+               
+               if(is_empty && !has_next) { 
                   // 对应缓冲区队列也为空, 且也没有需要读取的数据
+                  finished_run_count++;
                   continue; // 说明已经读取完成, 跳过这个缓冲区
-               } else if (!qs[i]->empty()) {
+               } else if (!is_empty) {
                   // 还有缓冲区则加载一个缓冲区
-                  current_buffers[i] = qs[i]->getBuffer(); 
-               } else if (qs[i]->has_next()){ 
+                  current_buffers[i] = qs[i]->getBuffer();
+                  // ⚠️ 关键：需要将新缓冲区的第一个元素加入堆！
+                  if(current_buffers[i] != nullptr && !current_buffers[i]->empty()) {
+                     pq.push(std::make_pair(current_buffers[i]->next(), i));
+                  }
+               } else if (has_next){ 
                   // 段中还有需要读取的
-                  i--; // 挂起并回退等待一个缓冲区读取完成
-                  std::this_thread::yield();
+                  while(qs[i]->has_next() && current_buffers[i] == nullptr)
+                     std::this_thread::yield();
+                  i--;
                }
             }
          }
+         if(finished_run_count == queue_num)
+            break;
 
          while(!pq.empty()) {
+            //std::cout<<"开始将结果输出到输出缓冲区"<<std::endl;
             std::pair<int64_t, int> top = pq.top();
             int64_t val = top.first;
             int src = top.second;
             pq.pop();
 
             while(outs[cur_out]->is_active()) { // 等待缓冲区可用
+               static int wait_count = 0;
+               // if(wait_count++ % 100000000 == 0) {
+               //    std::cout<<"MergeThread: 等待OutputBuffer["<<cur_out<<"] available..."<<std::endl;
+               // }
                std::this_thread::yield();
             }
             outs[cur_out]->add(val);
@@ -113,6 +136,7 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
          }
       }
       // 一轮结束, 回到未初始化状态
+      std::cout<<"第"<<cur_task<<"轮结束"<<std::endl;
       inited.store(false);
       cur_task ++;
    }
@@ -134,13 +158,18 @@ initializeRound(const std::vector<int>& run_ids) {
       
       // 获取这个段的大小
       uint64_t run_size = in_store->get_run_size(run_ids[i]);
+      // ⭐ 先设置run_size，再添加buffer
+      qs[i]->setRunSize(run_size);
+      
       // 计算第一块要读取的大小
       uint64_t chunk_size = std::min(run_size, static_cast<uint64_t>(1 << 13));
       // 读取第一块数据
       if(chunk_size > 0) {
          buffer->load_chunk(run_ids[i], 0, chunk_size);
       }
-      std::cout<<"初始化缓冲区, i = "<<i<<"  run_id = "<<run_ids[i]<<std::endl;
+      std::cout<<"初始化缓冲区, queue_id = "<<i
+               <<", run_id = "<<run_ids[i]<<", run_size = "
+               <<run_size<<std::endl;
       // 加入队列
       qs[i]->addBuffer(buffer);
    }

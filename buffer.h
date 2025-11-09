@@ -42,6 +42,8 @@ public:
     void load_next_block();
 
     void load_chunk(uint32_t run_id, uint64_t offset, uint64_t count);
+
+    size_t get_chunk_size() const;
     
 private:
     RunStore& store_;

@@ -340,6 +340,7 @@ uint32_t MultiRunFile::create_entries() {
                     entry.keys = run_element_count;
                     entry.bytes = run_element_count * sizeof(int64_t);
                     directory_.push_back(entry);
+                    //std::cout<<"run_element_count = "<<run_element_count<<std::endl;
                 }
                 
                 // 开始新的run

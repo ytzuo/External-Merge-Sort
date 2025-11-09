@@ -26,6 +26,7 @@ InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size)
 
 bool InputBuffer:: 
 has_next() const{
+    //std::cout<<"已消费 "<<consumed_<<" 总共 "<<total_size_<<std::endl;
     return consumed_ < total_size_;
 }
 
@@ -147,6 +148,11 @@ void InputBuffer::load_chunk(uint32_t run_id, uint64_t offset, uint64_t count) {
     buffer_end_ = count;
     total_size_ = count;
     consumed_ = 0;
+    //consumed_   = offset;
+}
+
+size_t InputBuffer::get_chunk_size() const {
+    return buffer_end_;  // 返回chunk的总大小，不是剩余大小
 }
 
 // 移动构造函数

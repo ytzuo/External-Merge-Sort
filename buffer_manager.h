@@ -53,10 +53,17 @@ private:
     std::queue<InputBuffer*> bufferQueue;
     size_t totalNum = 0;
     bool hasNext = true;
+    uint64_t run_size = 0;        // 整个 run 的大小
+    uint64_t elements_read = 0;   // 已读取的元素数
 
 public:
     size_t getQueueSize() {
         return bufferQueue.size();
+    }
+
+    void setRunSize(uint64_t size) {
+        run_size = size;
+        elements_read = 0;
     }
 
     size_t getTotalNum() {
@@ -71,12 +78,19 @@ public:
     void addBuffer(InputBuffer* buffer) {
         bufferQueue.push(buffer);
         totalNum++;
-        std::cout<<"缓冲区进入队列, totalNum = "<<totalNum<<std::endl;
-        hasNext = buffer->has_next();
+        elements_read += buffer->get_chunk_size();  // 累加已读取的元素
+        if(elements_read == run_size)
+            hasNext = false;
+        // std::cout<<"缓冲区进入队列, totalNum = "<<totalNum
+        //          <<", chunk_size = "<<buffer->get_chunk_size()
+        //          <<", elements_read = "<<elements_read
+        //          <<", run_size = "<<run_size
+        //          <<", hasNext = " << hasNext << std::endl;
+        //hasNext = buffer->has_next();
     }
 
     bool has_next() {
-        return hasNext;
+        return elements_read < run_size; 
     }
 
     // 从队列中获取一个缓冲区

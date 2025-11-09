@@ -211,6 +211,7 @@ void writer(std::vector<OutputBuffer> &bfs,
 void writer_p(std::vector<OutputBuffer*> &bfs, 
             const std::atomic<bool>& done_sorting) {
         bool use_buffer_1 = true;
+    // std::cout<<"WriterThread: 启动"<<std::endl;
 
     while(!done_sorting.load()) {
         OutputBuffer* output = use_buffer_1? bfs[0] : bfs[1];
@@ -222,6 +223,7 @@ void writer_p(std::vector<OutputBuffer*> &bfs,
         
         if(done_sorting.load()) break;
 
+        std::cout<<"开始写入"<<std::endl;
         output->flush_direct();
         output->set_active(false);
         
