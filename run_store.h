@@ -84,6 +84,10 @@ public:
         return file_->create_entries();
     }
 
+    void flush_directory() {
+        file_->flush_directory();
+    }
+
     // MultiRunFile* getFile() {
     //     return file_.get(); // get() 返回内部指针
     // }

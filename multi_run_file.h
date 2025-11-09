@@ -51,13 +51,13 @@ public:
     void append(const int64_t *keys, uint64_t n); // 单纯追加数据
     void end_run(); // 结束当前 run
     uint32_t create_entries();
+    void flush_directory();      // 把 directory_ 写到文件尾部并更新 header
 private:
     std::string               path_;
     mutable std::fstream      file_;    // 读写同一句柄，mutable 为了 lazy map
     std::vector<RunEntry>     directory_;
     uint64_t                  write_offset_; // 当前文件尾
 
-    void flush_directory();      // 把 directory_ 写到文件尾部并更新 header
     void reload_directory() const; // 重新加载目录信息确保最新
     bool in_run_;           // 是否正在一个run中
     uint32_t current_run_;  // 当前run的索引

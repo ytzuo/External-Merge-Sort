@@ -79,7 +79,6 @@ public:
     void addBuffer(InputBuffer* buffer) {
         bufferQueue.push(buffer);
         totalNum++;
-        std::cout<<"缓冲区进入队列, totalNum = "<<totalNum<<std::endl;
         // 不再使用buffer->has_next()，而是基于run_size判断
     }
 

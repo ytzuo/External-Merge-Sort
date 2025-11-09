@@ -156,10 +156,10 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
           std::this_thread::yield();
       }
       
-      // flush所有缓冲区的剩余数据（使用flush_direct，不调用end_run）
+      // flush所有缓冲区的剩余数据到当前run
       for(auto* out : outs) {
           if(!out->empty()) {
-              out->flush_direct();
+              out->flush();  // 使用flush()而不是flush_direct()，确保数据写入当前run
           }
       }
       
@@ -168,6 +168,9 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
           out_store->end_run();
           run_started = false;
       }
+      
+      // ⭐ 刷新目录信息到磁盘，确保下一轮能读取到正确的run大小
+      out_store->flush_directory();
       
       // 获取当前总run数
       uint32_t total_runs = out_store->run_count();
