@@ -111,7 +111,7 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
 
       int queue_num = task[cur_task].size();
       for(int i = 0; i < queue_num; i++) { // 初始化最小堆
-         current_buffers[i] = qs[i]->getBuffer();
+         current_buffers[i] = qs[i]->getBuffer(); // 取出队列头部的缓冲区
          pq.push(std::make_pair(current_buffers[i]->next(), i));
       }
       // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
@@ -121,13 +121,13 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
          // 检查有没有空的缓冲区
          for(int i = 0; i < queue_num; i++) {
             if(current_buffers[i] == nullptr) { // 当前某段没有缓冲区正在使用
-               if(qs[i]->empty() && qs[i]->getTotalNum() == 0) { 
+               if(qs[i]->empty() && !qs[i]->has_next()) { 
                   // 对应缓冲区队列也为空, 且也没有需要读取的数据
                   continue; // 说明已经读取完成, 跳过这个缓冲区
                } else if (!qs[i]->empty()) {
                   // 还有缓冲区则加载一个缓冲区
                   current_buffers[i] = qs[i]->getBuffer(); 
-               } else if (qs[i]->getTotalNum() != 0){ 
+               } else if (qs[i]->has_next()){ 
                   // 段中还有需要读取的
                   i--; // 挂起并回退等待一个缓冲区读取完成
                   std::this_thread::yield();

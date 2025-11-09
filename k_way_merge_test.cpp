@@ -8,7 +8,7 @@
 #include <random>
 #include <vector>
 
-void gen_raw_data(const std::string & FILENAME, uint64_t size) {
+static void gen_raw_data(const std::string & FILENAME, uint64_t size) {
     // 创建RunStore，使用new_file=true参数创建新文件
     RunStore store(FILENAME, true);
     // 创建随机数生成器
@@ -72,6 +72,15 @@ void k_way_merge_test() {
     std::vector<BufferQueue*> qs;                 // 缓冲区队列, 初始应该为空
     std::vector<OutputBuffer*> merge_outs;        // 输出缓冲区, 初始有两个空缓冲区
     RunStore merged_store(MERGED_FILENAME, true);
+    // 首先将所有初始run复制到输出存储中（使用拥有缓冲区的映射，避免悬空指针）
+    for (uint32_t i = 0; i < RUN_NUM; i++) {
+        MappedRange m = init_store.map_run_owned(i);
+        const int64_t *p = reinterpret_cast<const int64_t*>(m.data);
+        uint64_t n = m.bytes / sizeof(int64_t);
+        std::vector<int64_t> buf(p, p + n);
+        merged_store.add_run(buf);
+    }
+
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     std::vector<int64_t> last_key;                // 最后一个输出的元素

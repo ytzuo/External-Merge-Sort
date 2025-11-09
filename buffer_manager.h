@@ -52,6 +52,7 @@ class BufferQueue {
 private:
     std::queue<InputBuffer*> bufferQueue;
     size_t totalNum = 0;
+    bool hasNext = true;
 
 public:
     size_t getQueueSize() {
@@ -70,6 +71,11 @@ public:
     void addBuffer(InputBuffer* buffer) {
         bufferQueue.push(buffer);
         totalNum++;
+        hasNext = buffer->has_next();
+    }
+
+    bool has_next() {
+        return hasNext;
     }
 
     // 从队列中获取一个缓冲区
@@ -79,6 +85,7 @@ public:
         }
         InputBuffer* buffer = bufferQueue.front();
         bufferQueue.pop();
+        totalNum--;
         return buffer;
     }
 };
