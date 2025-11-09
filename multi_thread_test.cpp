@@ -10,7 +10,7 @@
 #include "threads.h"
 #include <thread>
 
-static void gen_raw_data(const std::string & FILENAME, uint64_t size) {
+void gen_raw_data(const std::string & FILENAME, uint64_t size) {
     // 创建RunStore，使用new_file=true参数创建新文件
     RunStore store(FILENAME, true);
     // 创建随机数生成器
@@ -30,7 +30,7 @@ void test_multi_thread() {
     const std::string RAW_FILENAME  = "raw.runs";
     const std::string INIT_FILENAME =  "initial.runs";
     const std::string MERGED_FILENAME = "merged.runs";
-    const uint64_t TOTAL = 10000000;
+    const uint64_t TOTAL = 1000000;
     //const uint64_t RUN_NUM = 10
 
     auto t1 = std::chrono::steady_clock::now();

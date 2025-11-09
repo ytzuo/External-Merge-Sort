@@ -223,8 +223,11 @@ void writer_p(std::vector<OutputBuffer*> &bfs,
         
         if(done_sorting.load()) break;
 
-        std::cout<<"开始写入"<<std::endl;
-        output->flush_direct();
+        // std::cout<<"开始写入"<<std::endl;
+        // Writer线程不需要调用flush，因为：
+        // 1. MergeThread的add()已经在缓冲区满时自动写入
+        // 2. 一轮结束时MergeThread会统一flush所有buffer并创建run
+        // 这里只需要重置active标志，表示已处理完成
         output->set_active(false);
         
         use_buffer_1 = !use_buffer_1;

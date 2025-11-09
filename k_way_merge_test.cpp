@@ -99,7 +99,7 @@ void k_way_merge_test() {
     std::atomic<bool> inited(false);           //  本轮任务是否初始化完成
 
     InputThread input_thread(K, &merged_store, &pool, qs, last_key, merge_tasks, inited);
-    MergeThread merge_thread(K, qs, last_key, merge_outs, &pool, merge_tasks, inited);
+    MergeThread merge_thread(K, qs, last_key, merge_outs, &pool, &merged_store, merge_tasks, inited);
     std::cout << "启动K路归并线程..." << std::endl;
     done_sorting.store(false);
     std::thread  input(&InputThread::inputRun, &input_thread);

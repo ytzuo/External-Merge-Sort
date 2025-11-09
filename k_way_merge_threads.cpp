@@ -30,9 +30,11 @@ MergeThread(int K,
             std::vector<int64_t>& last_key,
             std::vector<OutputBuffer*>& outs,
             BufferPool* pool,
+            RunStore* out_store,
             std::vector<std::vector<int>> task,
             std::atomic<bool>& inited)
-    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool), task(task), inited(inited){}
+    : K(K), qs(qs), last_key(&last_key), outs(outs), pool(pool), 
+      out_store(out_store), task(task), inited(inited){}
 
 
 void MergeThread::
@@ -47,6 +49,7 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
    size_t cur_out_count = 0;
    const size_t OUT_SWITCH_THRESHOLD = 1 << 16;
    int cur_task = 0;
+   bool run_started = false; // ⭐ 记录本轮是否已经开始run
    //uint64_t cur_out_count = 0;
 
    while(cur_task < task_num) {
@@ -64,6 +67,11 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
          //std::cout<<"MergeThread: 队列"<<i<<"的第一个元素已加入堆"<<std::endl;
       }
       std::cout<<"MergeThread: 堆初始化完成，开始归并循环..."<<std::endl;
+      
+      // ⭐ 一轮开始时，调用一次 begin_run()
+      out_store->begin_run();
+      run_started = true;
+      
       // 当所有队列都不为空: 每次从最小堆里弹出一个, 并从对应的缓冲区中读取下一个元素
       // 当一个缓冲区为空, 确认该缓冲区是否已经读完, 如果没有则等待输入线程填充数据
       // 已经读完则继续
@@ -137,6 +145,34 @@ kWayMerge(size_t task_num, std::atomic<bool>& done_sorting) {
       }
       // 一轮结束, 回到未初始化状态
       std::cout<<"第"<<cur_task<<"轮结束"<<std::endl;
+      
+      // 标记当前缓冲区为active，通知Writer线程写入
+      if(cur_out_count > 0) {
+          outs[cur_out]->set_active(true);
+      }
+      
+      // 等待Writer线程完成所有写入
+      while(outs[0]->is_active() || outs[1]->is_active()) {
+          std::this_thread::yield();
+      }
+      
+      // flush所有缓冲区的剩余数据（使用flush_direct，不调用end_run）
+      for(auto* out : outs) {
+          if(!out->empty()) {
+              out->flush_direct();
+          }
+      }
+      
+      // ⭐ 一轮结束，调用一次 end_run() 创建目录条目
+      if(run_started) {
+          out_store->end_run();
+          run_started = false;
+      }
+      
+      // 获取当前总run数
+      uint32_t total_runs = out_store->run_count();
+      std::cout<<"第"<<cur_task<<"轮结束，当前总共"<<total_runs<<"个run"<<std::endl;
+      
       inited.store(false);
       cur_task ++;
    }
@@ -172,6 +208,8 @@ initializeRound(const std::vector<int>& run_ids) {
                <<run_size<<std::endl;
       // 加入队列
       qs[i]->addBuffer(buffer);
+      // ⭐ 更新已读取的元素数
+      qs[i]->addElementsRead(chunk_size);
    }
 }
 
@@ -267,6 +305,8 @@ inputRun() {
          
          // 将缓冲区加入对应的队列
          qs[min_index]->addBuffer(buffer);
+         // ⭐ 更新已读取的元素数
+         qs[min_index]->addElementsRead(chunk_size);
       }
       
       // 当前任务完成，进入下一轮

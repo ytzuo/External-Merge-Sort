@@ -26,7 +26,6 @@ InputBuffer(RunStore& store, uint32_t run_id, size_t buffer_size)
 
 bool InputBuffer:: 
 has_next() const{
-    //std::cout<<"已消费 "<<consumed_<<" 总共 "<<total_size_<<std::endl;
     return consumed_ < total_size_;
 }
 
@@ -148,11 +147,6 @@ void InputBuffer::load_chunk(uint32_t run_id, uint64_t offset, uint64_t count) {
     buffer_end_ = count;
     total_size_ = count;
     consumed_ = 0;
-    //consumed_   = offset;
-}
-
-size_t InputBuffer::get_chunk_size() const {
-    return buffer_end_;  // 返回chunk的总大小，不是剩余大小
 }
 
 // 移动构造函数
@@ -202,13 +196,6 @@ OutputBuffer::OutputBuffer(RunStore& store, size_t buffer_size)
 
 void OutputBuffer::
 add(int64_t value) {
-    // 还没有一个新的 run 就创建一个
-    if(!run_started_) {
-        //std::cout<<"begin_run..."<<std::endl;
-        store_.begin_run();
-        run_started_ = true;
-    }
-
     buffer_.push_back(value);
 
     // 缓冲区已满, 写入磁盘
@@ -226,12 +213,6 @@ flush() {
         store_.append_to_run(buffer_);
         buffer_.clear();
         buffer_.reserve(buffer_size_);
-    }
-    // 结束 run
-    if(run_started_) {
-        //std::cout<<"end_run..."<<std::endl;
-        store_.end_run();
-        run_started_ = false;
     }
 }
 

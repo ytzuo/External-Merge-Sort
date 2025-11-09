@@ -18,6 +18,7 @@ private:
     std::vector<int64_t>* last_key;          // 共享调度视图（非拥有）
     std::vector<OutputBuffer*> outs;         // 双输出缓冲（非拥有）
     BufferPool* pool;                        // 用于回收输入缓冲（非拥有）
+    RunStore* out_store;                     // 输出存储（非拥有）
     std::vector<std::vector<int>> task;
     std::atomic<bool>& inited;               // 本轮任务是否初始化完成
 
@@ -27,6 +28,7 @@ public:
                 std::vector<int64_t>& last_key,
                 std::vector<OutputBuffer*>& outs,
                 BufferPool* pool,
+                RunStore* out_store,
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 
