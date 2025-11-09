@@ -18,7 +18,7 @@ public:
 
     BufferPool(size_t poolSize) {
         this->poolSize = poolSize;
-        bufferPool = std::vector<InputBuffer*>(poolSize);
+        bufferPool = std::vector<InputBuffer*>(0);
     }
 
     ~BufferPool() {
@@ -71,6 +71,7 @@ public:
     void addBuffer(InputBuffer* buffer) {
         bufferQueue.push(buffer);
         totalNum++;
+        std::cout<<"缓冲区进入队列, totalNum = "<<totalNum<<std::endl;
         hasNext = buffer->has_next();
     }
 

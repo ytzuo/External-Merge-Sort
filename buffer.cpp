@@ -29,6 +29,11 @@ has_next() const{
     return consumed_ < total_size_;
 }
 
+bool InputBuffer::
+empty() const{
+    return buffer_pos_ >= buffer_end_;
+}
+
 int64_t InputBuffer::
 next() {
     if(!has_next()) return -1;

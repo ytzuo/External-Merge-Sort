@@ -20,6 +20,9 @@ public:
     
     /* 检查是否还有数据可读 */
     bool has_next() const;
+
+    /* 缓冲区内是否还有数据 */
+    bool empty() const;
     
     /* 读取下一个元素 */
     int64_t next();

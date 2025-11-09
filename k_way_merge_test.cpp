@@ -67,9 +67,13 @@ void k_way_merge_test() {
 
     auto t3 = std::chrono::steady_clock::now();
     std::vector<std::vector<int>> merge_tasks = generate_task(K, RUN_NUM);
-    
-    BufferPool pool(2 * K);              // 缓冲池，有 2K 个段
+
+
     std::vector<BufferQueue*> qs;                 // 缓冲区队列, 初始应该为空
+    for(int i = 0; i < K; i++) {
+        qs.push_back(new BufferQueue());
+    }
+
     std::vector<OutputBuffer*> merge_outs;        // 输出缓冲区, 初始有两个空缓冲区
     RunStore merged_store(MERGED_FILENAME, true);
     // 首先将所有初始run复制到输出存储中（使用拥有缓冲区的映射，避免悬空指针）
@@ -81,9 +85,17 @@ void k_way_merge_test() {
         merged_store.add_run(buf);
     }
 
+    BufferPool pool(2 * K);              // 缓冲池，有 2K 个段
+    for(int i = 0; i < 2 * K; i++) {
+        pool.returnBuffer(new InputBuffer(merged_store, 0));
+    }
+
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     std::vector<int64_t> last_key;                // 最后一个输出的元素
+    for(int i = 0; i < K; i++) {
+        last_key.push_back(0);
+    }
     std::atomic<bool> inited(false);           //  本轮任务是否初始化完成
 
     InputThread input_thread(K, &merged_store, &pool, qs, last_key, merge_tasks, inited);
