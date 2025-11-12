@@ -5,6 +5,7 @@
 #include "k_way_merge_threads.h"
 #include "run_store.h"
 #include "threads.h"
+#include <ostream>
 #include <random>
 #include <vector>
 
@@ -67,7 +68,12 @@ void k_way_merge_test() {
 
     auto t3 = std::chrono::steady_clock::now();
     std::vector<std::vector<int>> merge_tasks = generate_task(K, RUN_NUM);
-
+        for(int i = 0; i < merge_tasks.size(); i++) {
+        for(int j = 0; j < merge_tasks[i].size(); j++) {
+            std::cout<<merge_tasks[i][j]<<" ";
+        }
+        std::cout<<std::endl;
+    }
 
     std::vector<BufferQueue*> qs;                 // 缓冲区队列, 初始应该为空
     for(int i = 0; i < K; i++) {
@@ -90,6 +96,8 @@ void k_way_merge_test() {
         pool.returnBuffer(new InputBuffer(merged_store, 0));
     }
 
+    std::vector<InputBuffer*> current_buffers(K, nullptr);
+
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     merge_outs.emplace_back(new OutputBuffer(merged_store));
     std::vector<int64_t> last_key;                // 最后一个输出的元素
@@ -102,8 +110,8 @@ void k_way_merge_test() {
     MergeThread merge_thread(K, qs, last_key, merge_outs, &pool, &merged_store, merge_tasks, inited);
     std::cout << "启动K路归并线程..." << std::endl;
     done_sorting.store(false);
-    std::thread  input(&InputThread::inputRun, &input_thread);
-    std::thread  merge(&MergeThread::kWayMerge, &merge_thread, merge_tasks.size(), std::ref(done_sorting));
+    std::thread  input(&InputThread::inputRun, &input_thread, std::ref(current_buffers));
+    std::thread  merge(&MergeThread::kWayMerge, &merge_thread, merge_tasks.size(), std::ref(done_sorting), std::ref(current_buffers));
     std::thread output(writer_p, std::ref(merge_outs), std::ref(done_sorting));
     input.join();
     merge.join();

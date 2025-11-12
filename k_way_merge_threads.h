@@ -32,7 +32,9 @@ public:
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 
-    void kWayMerge(size_t task_num, std::atomic<bool>& done_sorting);
+    void kWayMerge(size_t task_num, 
+                   std::atomic<bool>& done_sorting, 
+                   std::vector<InputBuffer*>& current_buffers);
 };
 
 // InputThread：不拿 MergeThread 指针；直接读 last_key 和队列
@@ -67,7 +69,7 @@ public:
                 std::vector<std::vector<int>> task,
                 std::atomic<bool>& inited);
 
-    void inputRun();
+    void inputRun(std::vector<InputBuffer*>& current_buffers);
     // 每轮开始时初始化 K 个输入缓冲区
     void initializeRound(const std::vector<int>& run_ids);
 };
