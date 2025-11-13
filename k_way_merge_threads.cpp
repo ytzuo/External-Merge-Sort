@@ -176,7 +176,7 @@ kWayMerge(size_t task_num,
          
       // 获取当前总run数
       uint32_t total_runs = out_store->run_count();
-      std::cout<<"第"<<cur_task<<"轮结束，当前总共"<<total_runs<<"个run"<<std::endl;
+      //std::cout<<"第"<<cur_task<<"轮结束，当前总共"<<total_runs<<"个run"<<std::endl;
          
       inited.store(false);
       cur_task ++;
@@ -251,8 +251,8 @@ inputRun(std::vector<InputBuffer*>& current_buffers) {
       for(int i = 0; i < current_run_ids.size(); i++) {
          run_sizes[i] = in_store->get_run_size(current_run_ids[i]);
       }
-      std::cout << "输入线程: 本轮有 " << current_run_ids.size() 
-          << " 个run, run_sizes: ";
+      //std::cout << "输入线程: 本轮有 " << current_run_ids.size() 
+      //    << " 个run, run_sizes: ";
       for(int i = 0; i < current_run_ids.size(); i++) {
          std::cout << run_sizes[i] << " ";
       }
@@ -317,7 +317,7 @@ inputRun(std::vector<InputBuffer*>& current_buffers) {
          buffer->load_chunk(current_run_ids[min_index], 
                            run_offsets[min_index], 
                            chunk_size);
-         std::cout<<"输入线程: 从run "<<current_run_ids[min_index]<<" 读取数据到缓冲区 "<<buffer<<"，大小为 "<<chunk_size<<std::endl;
+         //std::cout<<"输入线程: 从run "<<current_run_ids[min_index]<<" 读取数据到缓冲区 "<<buffer<<"，大小为 "<<chunk_size<<std::endl;
          
          // 更新偏移和last_key
          run_offsets[min_index] += chunk_size;
@@ -332,5 +332,5 @@ inputRun(std::vector<InputBuffer*>& current_buffers) {
       // 当前任务完成，进入下一轮
       current_task_index++;
    }
-   std::cout<<"输入线程完成所有任务"<<std::endl;
+   //std::cout<<"输入线程完成所有任务"<<std::endl;
 }
