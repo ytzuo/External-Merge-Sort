@@ -3,6 +3,7 @@
 project1：基于二路归并计划树的外部排序实现
 文件：
     multi_run_file.h, multi_run_file.cpp => 支持多归并段存储的文件，采用将元数据放在文件末尾的形式，保证可扩展性
+    buffer.h, buffer.cpp                 => 缓冲区类
     run_store.h, run_store.cpp           => 封装文件操作，提供对段的多种必要操作方法
     merge_plan.h, merge_plan.cpp         => 归并计划树的实现，包括生成归并计划树的逻辑和
     merge_plan_tree_test.cpp             => 归并计划树的测试代码

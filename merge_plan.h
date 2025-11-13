@@ -9,13 +9,10 @@
 struct MergePlanNode {
     bool is_leaf;
     std::unique_ptr<MergePlanNode> left, right;
-    std::string run_fname; // run所在文件 叶子节点才有效
+    std::string run_fname; // run所在文件
     size_t run_length;
     std::string out_fname; // 输出文件 内部节点才有效
     uint32_t id;
-
-    //MergePlanNode(bool leaf, const uint32_t i, const std::string &file = "", size_t len = 0)
-    //: is_leaf(leaf), run_fname(file), run_length(len), id(i) {}
 
     MergePlanNode(bool leaf, const std::string &file = "", size_t len = 0)
     : is_leaf(leaf), run_fname(file), run_length(len), id(0) {}

@@ -96,7 +96,7 @@ void test_multi_thread() {
 }
 
 
-// int main() {
-//     test_multi_thread();
-//     return 0;
-// }
+int main() {
+    test_multi_thread();
+    return 0;
+}

@@ -72,27 +72,6 @@ public:
     void inputRun(std::vector<InputBuffer*>& current_buffers);
     // 每轮开始时初始化 K 个输入缓冲区
     void initializeRound(const std::vector<int>& run_ids);
-};
-
-class kWayMergeManager {
-private:
-    // 拥有的资源
-    int K;
-    RunStore* store;                                        // 非拥有（由上层创建/销毁）
-    std::vector<std::unique_ptr<BufferQueue>> q_storage;    // 真正持有
-    std::vector<BufferQueue*> qs;                           // 裸指针视图（便于传参）
-    std::vector<int64_t> last_key;                          // 共享调度视图
-    std::vector<OutputBuffer*> outs;                        // 由上层传入管理（非拥有）
-    BufferPool pool;                                        // 空闲输入缓冲池（你已改为外部注入构造）
-
-    // 线程实体
-    MergeThread merge;
-    InputThread input;
-
-    // 线程对象
-    std::thread t_input;
-    std::thread t_merge;
-    std::thread t_writer;
-};
+};  
 
 std::vector<std::vector<int>> generate_task(int K, int total_runs);

@@ -121,17 +121,17 @@ void k_way_merge_test() {
               << "Merge     : " << (t4 - t3).count() / 1e9 << " s\n";
 }
 
-int main() {
-    // int K = 4;
-    // int total_runs = 9;
-    // std::vector<std::vector<int>> tasks;
-    // tasks = generate_task(K, total_runs);
-    // for(std::vector t: tasks) {
-    //     for(int i = 0; i < t.size(); i++) {
-    //         std::cout << t[i] << " ";
-    //     }
-    //     std::cout<<std::endl;
-    // }
-    k_way_merge_test();
-    return 0;
-}
+// int main() {
+//     // int K = 4;
+//     // int total_runs = 9;
+//     // std::vector<std::vector<int>> tasks;
+//     // tasks = generate_task(K, total_runs);
+//     // for(std::vector t: tasks) {
+//     //     for(int i = 0; i < t.size(); i++) {
+//     //         std::cout << t[i] << " ";
+//     //     }
+//     //     std::cout<<std::endl;
+//     // }
+//     k_way_merge_test();
+//     return 0;
+// }
