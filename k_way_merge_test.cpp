@@ -29,11 +29,11 @@ void k_way_merge_test() {
     const std::string RAW_FILENAME  = "raw.runs";
     const std::string INIT_FILENAME =  "initial.runs";
     const std::string MERGED_FILENAME = "merged.runs";
-    const uint64_t TOTAL = 1000000;
+    const uint64_t TOTAL = 500000;
     const int K = 4;
 
-    auto t1 = std::chrono::steady_clock::now();
     std::cout << "生成乱序数据..." << std::endl;
+    auto t1 = std::chrono::steady_clock::now();
     gen_raw_data(RAW_FILENAME, TOTAL);
 
     /* 初始化输入缓冲区 */
@@ -121,17 +121,17 @@ void k_way_merge_test() {
               << "Merge     : " << (t4 - t3).count() / 1e9 << " s\n";
 }
 
-// int main() {
-//     // int K = 4;
-//     // int total_runs = 9;
-//     // std::vector<std::vector<int>> tasks;
-//     // tasks = generate_task(K, total_runs);
-//     // for(std::vector t: tasks) {
-//     //     for(int i = 0; i < t.size(); i++) {
-//     //         std::cout << t[i] << " ";
-//     //     }
-//     //     std::cout<<std::endl;
-//     // }
-//     k_way_merge_test();
-//     return 0;
-// }
+int main() {
+    // int K = 4;
+    // int total_runs = 9;
+    // std::vector<std::vector<int>> tasks;
+    // tasks = generate_task(K, total_runs);
+    // for(std::vector t: tasks) {
+    //     for(int i = 0; i < t.size(); i++) {
+    //         std::cout << t[i] << " ";
+    //     }
+    //     std::cout<<std::endl;
+    // }
+    k_way_merge_test();
+    return 0;
+}

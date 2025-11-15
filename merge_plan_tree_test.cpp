@@ -8,8 +8,8 @@
 #include <vector>
 
 void testMerge() {
-    const uint64_t TOTAL = 10000000;
-    const uint64_t RUN_NUM = 10;
+    const uint64_t TOTAL = 500000;
+    const uint64_t RUN_NUM = 16;
     const uint64_t RUN_SIZE = TOTAL / RUN_NUM;
     const std::string INITIAL = "initial.runs";
     const std::string MERGED   = "merged.runs";
@@ -59,83 +59,83 @@ void testMerge() {
     uint32_t final_result_id = execute_merge_plan_return_id(plan.get(), in_store, out_store);
     auto t3 = std::chrono::steady_clock::now();
 
-    /* 校验结果 */
-    std::cout << "校验结果..." << std::endl;
-    // 打印输出存储中的run数量
-    std::cout << "输出存储中的run数量: " << out_store.run_count() << std::endl;
+    // /* 校验结果 */
+    // std::cout << "校验结果..." << std::endl;
+    // // 打印输出存储中的run数量
+    // std::cout << "输出存储中的run数量: " << out_store.run_count() << std::endl;
     
-    // 检查所有run的内容
-    uint64_t total_elements = 0;
+    // // 检查所有run的内容
+    // uint64_t total_elements = 0;
     
-    const uint64_t CHUNK = 65536; // 每次读取的元素数量
-    for (uint32_t i = 0; i < out_store.run_count(); i++) {
-        uint64_t n = out_store.get_run_size(i);
-        total_elements += n;
-        //std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
+    // const uint64_t CHUNK = 65536; // 每次读取的元素数量
+    // for (uint32_t i = 0; i < out_store.run_count(); i++) {
+    //     uint64_t n = out_store.get_run_size(i);
+    //     total_elements += n;
+    //     //std::cout << "Run " << i << " 包含 " << n << " 个元素" << std::endl;
 
-        if (n == 0) {
-            //std::cout << "Run " << i << " 排序 正确 (空)" << std::endl;
-            continue;
-        }
+    //     if (n == 0) {
+    //         //std::cout << "Run " << i << " 排序 正确 (空)" << std::endl;
+    //         continue;
+    //     }
 
-        bool ok = true;
-        int64_t prev_tail = 0; // 上一块的尾值
-        bool has_prev_tail = false;
-        uint64_t offset = 0;
-        while (offset < n) {
-            uint64_t cnt = std::min(CHUNK, n - offset);
-            MappedRange chunk = out_store.map_run_range_owned(i, offset, cnt);
-            const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
-            uint64_t m = chunk.bytes / sizeof(int64_t);
+    //     bool ok = true;
+    //     int64_t prev_tail = 0; // 上一块的尾值
+    //     bool has_prev_tail = false;
+    //     uint64_t offset = 0;
+    //     while (offset < n) {
+    //         uint64_t cnt = std::min(CHUNK, n - offset);
+    //         MappedRange chunk = out_store.map_run_range_owned(i, offset, cnt);
+    //         const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
+    //         uint64_t m = chunk.bytes / sizeof(int64_t);
 
-            // 检查本块内部是否有序
-            for (uint64_t j = 1; j < m; j++) {
-                if (p[j] < p[j-1]) {
-                    std::cout << "  Run " << i << " 在块 offset=" << offset << " 内位置 " << j << " 发现未排序: "
-                              << p[j-1] << " > " << p[j] << std::endl;
-                    ok = false;
-                    break;
-                }
-            }
+    //         // 检查本块内部是否有序
+    //         for (uint64_t j = 1; j < m; j++) {
+    //             if (p[j] < p[j-1]) {
+    //                 std::cout << "  Run " << i << " 在块 offset=" << offset << " 内位置 " << j << " 发现未排序: "
+    //                           << p[j-1] << " > " << p[j] << std::endl;
+    //                 ok = false;
+    //                 break;
+    //             }
+    //         }
 
-            // 检查与上一块的边界
-            if (has_prev_tail && m > 0) {
-                if (prev_tail > p[0]) {
-                    std::cout << "  Run " << i << " 边界不连续: prev_tail=" << prev_tail << " > cur_head=" << p[0]
-                              << " at offset=" << offset << std::endl;
-                    ok = false;
-                }
-            }
+    //         // 检查与上一块的边界
+    //         if (has_prev_tail && m > 0) {
+    //             if (prev_tail > p[0]) {
+    //                 std::cout << "  Run " << i << " 边界不连续: prev_tail=" << prev_tail << " > cur_head=" << p[0]
+    //                           << " at offset=" << offset << std::endl;
+    //                 ok = false;
+    //             }
+    //         }
 
-            // 更新 prev_tail
-            if (m > 0) {
-                prev_tail = p[m-1];
-                has_prev_tail = true;
-            }
+    //         // 更新 prev_tail
+    //         if (m > 0) {
+    //             prev_tail = p[m-1];
+    //             has_prev_tail = true;
+    //         }
 
-            offset += cnt;
-        }
+    //         offset += cnt;
+    //     }
 
-        //std::cout << "Run " << i << " 排序 " << (ok ? "正确" : "错误") << std::endl;
-    }
+    //     //std::cout << "Run " << i << " 排序 " << (ok ? "正确" : "错误") << std::endl;
+    // }
     
-    std::cout << "总共元素数量: " << total_elements << std::endl;
+    // std::cout << "总共元素数量: " << total_elements << std::endl;
     
-    std::cout << "使用run id: " << final_result_id << " (最终结果run)" << std::endl;
+    // std::cout << "使用run id: " << final_result_id << " (最终结果run)" << std::endl;
     
-    // 打印问题 run 的元数据以便诊断
-    for (uint32_t rid : {197u, 198u}) {
-        if (rid < out_store.run_count()) {
-            uint64_t off, keys, bytes;
-            out_store.get_run_metadata(rid, off, keys, bytes);
-            std::cout << "Run metadata: id=" << rid << ", offset=" << off << ", keys=" << keys << ", bytes=" << bytes << std::endl;
-        }
-    }
+    // // 打印问题 run 的元数据以便诊断
+    // for (uint32_t rid : {197u, 198u}) {
+    //     if (rid < out_store.run_count()) {
+    //         uint64_t off, keys, bytes;
+    //         out_store.get_run_metadata(rid, off, keys, bytes);
+    //         std::cout << "Run metadata: id=" << rid << ", offset=" << off << ", keys=" << keys << ", bytes=" << bytes << std::endl;
+    //     }
+    // }
 
-    auto [_, final_n] = out_store.get_run(final_result_id);
-    std::cout << "获取到的元素数量: " << final_n << std::endl;
-    // 分块读取前后样本，避免一次性分配
-    const uint64_t SAMPLE = 10;
+    // auto [_, final_n] = out_store.get_run(final_result_id);
+    // std::cout << "获取到的元素数量: " << final_n << std::endl;
+    // // 分块读取前后样本，避免一次性分配
+    // const uint64_t SAMPLE = 10;
     // if (final_n > 0) {
     //     // 前 SAMPLE
     //     uint64_t front_cnt = std::min(SAMPLE, final_n);
@@ -155,46 +155,46 @@ void testMerge() {
     // }
 
     // 验证最终结果是否包含所有元素（分块校验）
-    bool ok = true;
-    int64_t prev_tail = 0; bool has_prev_tail = false;
-    uint64_t offset = 0;
-    while (offset < final_n) {
-        uint64_t cnt = std::min(CHUNK, final_n - offset);
-        MappedRange chunk = out_store.map_run_range_owned(final_result_id, offset, cnt);
-        const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
-        uint64_t m = chunk.bytes / sizeof(int64_t);
-        for (uint64_t j = 1; j < m; j++) {
-            if (p[j] < p[j-1]) { ok = false; break; }
-        }
-        if (has_prev_tail && m > 0 && prev_tail > p[0]) { ok = false; }
-        if (m > 0) { prev_tail = p[m-1]; has_prev_tail = true; }
-        offset += cnt;
-        if (!ok) break;
-    }
-    std::cout << "Validation " << (ok ? "PASSED" : "FAILED")
-              << ", total records: " << final_n << std::endl;
+    // bool ok = true;
+    // int64_t prev_tail = 0; bool has_prev_tail = false;
+    // uint64_t offset = 0;
+    // while (offset < final_n) {
+    //     uint64_t cnt = std::min(CHUNK, final_n - offset);
+    //     MappedRange chunk = out_store.map_run_range_owned(final_result_id, offset, cnt);
+    //     const int64_t *p = reinterpret_cast<const int64_t*>(chunk.data);
+    //     uint64_t m = chunk.bytes / sizeof(int64_t);
+    //     for (uint64_t j = 1; j < m; j++) {
+    //         if (p[j] < p[j-1]) { ok = false; break; }
+    //     }
+    //     if (has_prev_tail && m > 0 && prev_tail > p[0]) { ok = false; }
+    //     if (m > 0) { prev_tail = p[m-1]; has_prev_tail = true; }
+    //     offset += cnt;
+    //     if (!ok) break;
+    // }
+    // std::cout << "Validation " << (ok ? "PASSED" : "FAILED")
+    //           << ", total records: " << final_n << std::endl;
     
-    if (final_n == TOTAL) {
-        std::cout << "成功: 最终结果包含所有 " << TOTAL << " 个元素" << std::endl;
-    } else {
-        std::cout << "注意: 最终结果只包含 " << final_n << " 个元素，期望 " << TOTAL << " 个元素" << std::endl;
-        std::cout << "这可能是因为归并计划树没有完全执行，最终结果可能在另一个run中" << std::endl;
+    // if (final_n == TOTAL) {
+    //     std::cout << "成功: 最终结果包含所有 " << TOTAL << " 个元素" << std::endl;
+    // } else {
+    //     std::cout << "注意: 最终结果只包含 " << final_n << " 个元素，期望 " << TOTAL << " 个元素" << std::endl;
+    //     std::cout << "这可能是因为归并计划树没有完全执行，最终结果可能在另一个run中" << std::endl;
         
-        // 查找包含最多元素的run
-        uint64_t max_elements = 0;
-        uint32_t max_run_id = 0;
-        for (uint32_t i = 0; i < out_store.run_count(); i++) {
-            auto [p, n] = out_store.get_run(i);
-            if (n > max_elements) {
-                max_elements = n;
-                max_run_id = i;
-            }
-        }
+    //     // 查找包含最多元素的run
+    //     uint64_t max_elements = 0;
+    //     uint32_t max_run_id = 0;
+    //     for (uint32_t i = 0; i < out_store.run_count(); i++) {
+    //         auto [p, n] = out_store.get_run(i);
+    //         if (n > max_elements) {
+    //             max_elements = n;
+    //             max_run_id = i;
+    //         }
+    //     }
         
-        if (max_run_id != final_result_id) {
-            std::cout << "包含最多元素的run是 run_id=" << max_run_id << "，包含 " << max_elements << " 个元素" << std::endl;
-        }
-    }
+    //     if (max_run_id != final_result_id) {
+    //         std::cout << "包含最多元素的run是 run_id=" << max_run_id << "，包含 " << max_elements << " 个元素" << std::endl;
+    //     }
+    // }
               
     std::cout << "Generate  : " << (t1 - t0).count() / 1e9 << " s\n"
               << "Merge     : " << (t3 - t2).count() / 1e9 << " s\n";

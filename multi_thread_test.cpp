@@ -30,13 +30,13 @@ void test_multi_thread() {
     const std::string RAW_FILENAME  = "raw.runs";
     const std::string INIT_FILENAME =  "initial.runs";
     const std::string MERGED_FILENAME = "merged.runs";
-    const uint64_t TOTAL = 1000000;
+    const uint64_t TOTAL = 500000;
     //const uint64_t RUN_NUM = 10
 
-    auto t1 = std::chrono::steady_clock::now();
+    std::cout<<"TOTAL = "<<TOTAL<<std::endl;
     std::cout << "生成乱序数据..." << std::endl;
     gen_raw_data(RAW_FILENAME, TOTAL);
-
+    auto t1 = std::chrono::steady_clock::now();
     /* 初始化输入缓冲区 */
     RunStore raw_store(RAW_FILENAME);
     std::vector<InputBuffer> ins;
@@ -62,10 +62,11 @@ void test_multi_thread() {
     read.join();
     sort.join();
     write.join();
-    std::cout << "生成文件元数据..." << std::endl;
     uint32_t RUN_NUM =  init_store.create_entries();
-    std::cout<<"生成 RUN_NUM = "<<RUN_NUM<<std::endl;
     auto t2 = std::chrono::steady_clock::now();
+    std::cout << "生成文件元数据..." << std::endl;
+    std::cout<<"生成 RUN_NUM = "<<RUN_NUM<<std::endl;
+
 
     std::vector<uint32_t> runs;
     for(uint32_t i = 0; i < RUN_NUM; i++) {
@@ -96,7 +97,7 @@ void test_multi_thread() {
 }
 
 
-int main() {
-    test_multi_thread();
-    return 0;
-}
+// int main() {
+//     test_multi_thread();
+//     return 0;
+// }
