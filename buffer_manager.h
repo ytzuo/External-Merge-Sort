@@ -101,4 +101,14 @@ public:
         totalNum--;
         return buffer;
     }
+
+    // 重置队列状态，用于每轮归并开始前
+    void reset() {
+        elements_read = 0;
+        // 清空队列中残留的缓冲区（不应该有，但为了安全）
+        while (!bufferQueue.empty()) {
+            bufferQueue.pop();
+        }
+        totalNum = 0;
+    }
 };

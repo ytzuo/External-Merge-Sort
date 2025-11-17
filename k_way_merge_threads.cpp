@@ -60,6 +60,14 @@ kWayMerge(size_t task_num,
       }
       std::cout<<"开始处理第"<<cur_task<<"轮"<<std::endl;
 
+      // 清理上一轮可能残留的缓冲区
+      for(int i = 0; i < K; i++) {
+         if(current_buffers[i] != nullptr) {
+            pool->returnBuffer(current_buffers[i]);
+            current_buffers[i] = nullptr;
+         }
+      }
+
       int queue_num = task[cur_task].size();
       for(int i = 0; i < queue_num; i++) { // 初始化最小堆
          //std::cout<<"MergeThread: 正在从队列"<<i<<"获取缓冲区..."<<std::endl;
@@ -152,7 +160,7 @@ kWayMerge(size_t task_num,
          outs[cur_out]->set_active(true);
       }
          
-         // 等待Writer线程完成所有写入
+      // 等待Writer线程完成所有写入
       while(outs[0]->is_active() || outs[1]->is_active()) {
          std::this_thread::yield();
       }
@@ -180,6 +188,15 @@ kWayMerge(size_t task_num,
       inited.store(false);
       cur_task ++;
    }
+   
+   // 所有任务完成后，确保所有缓冲区被正确归还
+   for(int i = 0; i < K; i++) {
+      if(current_buffers[i] != nullptr) {
+         pool->returnBuffer(current_buffers[i]);
+         current_buffers[i] = nullptr;
+      }
+   }
+   
    done_sorting.store(true); // 通知写入线程已经排序完毕
 }
 
@@ -190,6 +207,9 @@ initializeRound(const std::vector<int>& run_ids) {
         此时从 pool 中取出 K 个缓冲区并初始化新的 run_id
      */
    for(int i = 0; i < run_ids.size(); i++) {
+      // 每轮开始前重置队列状态
+      qs[i]->reset();
+      
       InputBuffer* buffer = pool->getBuffer();
       while(buffer == nullptr) { // 没有空闲的缓冲区, 等待
          std::this_thread::yield();
@@ -331,5 +351,4 @@ inputRun(std::vector<InputBuffer*>& current_buffers) {
       // 当前任务完成，进入下一轮
       current_task_index++;
    }
-   //std::cout<<"输入线程完成所有任务"<<std::endl;
 }

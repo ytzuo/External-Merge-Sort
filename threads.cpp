@@ -210,29 +210,27 @@ void writer(std::vector<OutputBuffer> &bfs,
 
 void writer_p(std::vector<OutputBuffer*> &bfs, 
             const std::atomic<bool>& done_sorting) {
-        bool use_buffer_1 = true;
-    // std::cout<<"WriterThread: 启动"<<std::endl;
+    //std::cout<<"WriterThread: 启动"<<std::endl;
 
     while(!done_sorting.load()) {
-        OutputBuffer* output = use_buffer_1? bfs[0] : bfs[1];
-        
-        // 等待缓冲区被标记为需要写入
-        while(!output->is_active() && !done_sorting.load()) {
-            std::this_thread::yield();
+        // 轮流检查两个缓冲区，看哪个被标记为active
+        bool found = false;
+        for(int i = 0; i < 2; i++) {
+            if(bfs[i]->is_active()) {
+                bfs[i]->set_active(false);
+                //std::cout<<"WriterThread: 设置buffer "<<i<<" active=false"<<std::endl;
+                found = true;
+                break;
+            }
         }
         
-        if(done_sorting.load()) break;
-
-        // std::cout<<"开始写入"<<std::endl;
-        // Writer线程不需要调用flush，因为：
-        // 1. MergeThread的add()已经在缓冲区满时自动写入
-        // 2. 一轮结束时MergeThread会统一flush所有buffer并创建run
-        // 这里只需要重置active标志，表示已处理完成
-        output->set_active(false);
-        
-        use_buffer_1 = !use_buffer_1;
+        if(!found && !done_sorting.load()) {
+            // 没有找到active的缓冲区，且未完成，继续等待
+            std::this_thread::yield();
+        }
     }
     
+    //std::cout<<"WriterThread: 检测到done_sorting，退出主循环"<<std::endl;
     // 排序完成后，检查是否还有剩余数据需要 flush
     for (auto& buf : bfs) {
         if (buf->is_active() || !buf->empty()) {
@@ -240,5 +238,5 @@ void writer_p(std::vector<OutputBuffer*> &bfs,
             buf->set_active(false);
         }
     }        
-            
+    //std::cout<<"WriterThread: 完成"<<std::endl;        
 }
